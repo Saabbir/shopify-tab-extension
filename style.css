@@ -6,6 +6,12 @@ body {
   color: #111;
 }
 
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
 header {
   display: flex;
   justify-content: space-between;
@@ -63,9 +69,9 @@ main {
 
 .videos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  padding: 20px;
+  padding: 20px 0;
 }
 
 .video-card {
@@ -110,8 +116,15 @@ main {
 }
 
 .channel-title {
-  margin: 8px 0 0;
+  margin: 8px 0;
   font-size: 14px;
   color: #666;
   font-weight: 500;
+}
+
+.video-date {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
 }

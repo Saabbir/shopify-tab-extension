@@ -119,9 +119,16 @@ function displayVideos(videos) {
         <div class="video-info">
           <p class="video-title">${video.snippet.title}</p>
           <p class="channel-title">${video.snippet.channelTitle}</p>
+          <p class="video-date">${formatDate(video.snippet.publishedAt)}</p>
         </div>
       </a>
     `;
     container.appendChild(card);
   });
+}
+
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
 }

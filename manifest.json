@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Dev Feed",
+  "name": "Shopify Tab",
   "description": "Shows latest Shopify development videos in new tab",
   "version": "1.0",
   "permissions": [
@@ -16,6 +16,6 @@
     "newtab": "newtab.html"
   },
   "action": {
-    "default_title": "YouTube Dev Feed"
+    "default_title": "Shopify Tab"
   }
 }
