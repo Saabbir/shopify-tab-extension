@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Dev Feed",
+  "description": "Shows latest Shopify development videos in new tab",
+  "version": "1.0",
+  "permissions": [
+    "storage",
+    "scripting",
+    "https://www.googleapis.com/*"
+  ],
+  "host_permissions": ["https://www.googleapis.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "action": {
+    "default_title": "YouTube Dev Feed"
+  }
+}
