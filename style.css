@@ -22,6 +22,51 @@ header {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+.header-left {
+  flex: 1;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.refresh-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 16px;
+  padding: 8px 16px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.refresh-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.refresh-icon {
+  font-size: 16px;
+  transition: transform 0.2s ease;
+}
+
+.refresh-btn:hover .refresh-icon {
+  transform: rotate(360deg);
+}
+
+.refresh-text {
+  font-weight: 500;
+}
+
 .header-left h1 {
   margin: 0;
   font-size: 24px;

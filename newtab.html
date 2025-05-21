@@ -7,12 +7,20 @@
 </head>
 <body>
   <header>
-    <h1>Shopify Tab</h1>
+    <div class="header-left">
+      <h1>Shopify Tab</h1>
+    </div>
+    <div class="header-right">
+      <button id="refresh-btn" class="refresh-btn">
+        <span class="refresh-icon">🔄</span>
+        <span class="refresh-text">Refresh</span>
+      </button>
+    </div>
   </header>
   <main>
     <div class="container">
       <div id="loading">Loading...</div>
-      <div id="error-message" style="display: none; color: #ff0000; margin: 20px; text-align: center;"></div>
+      <div id="error-message" style="display: none; color: #f44336; padding: 8px; border-radius: 4px;"></div>
       <div id="videos-container" class="videos-grid"></div>
     </div>
   </main>
