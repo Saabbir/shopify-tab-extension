@@ -17,22 +17,31 @@ async function fetchVideos() {
   const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
 
   if (cached && cachedTime && now - cachedTime < CACHE_TTL) {
-    displayVideos(JSON.parse(cached));
-    return;
+    const cachedVideos = JSON.parse(cached);
+    // Filter out videos older than 10 days
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    const recentVideos = cachedVideos.filter(video => 
+      new Date(video.snippet.publishedAt) >= tenDaysAgo
+    );
+    if (recentVideos.length > 0) {
+      displayVideos(recentVideos);
+      return;
+    }
   }
 
   try {
     let videos = [];
     let pageToken;
 
-    // First fetch videos from last week
+    // Fetch videos from the last 10 days
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
     const params = new URLSearchParams({
       part: 'snippet',
       type: 'video',
       order: 'date',
       maxResults: MAX_RESULTS_PER_PAGE,
       q: QUERY,
-      publishedAfter: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      publishedAfter: tenDaysAgo,
       key: YOUTUBE_API_KEY
     });
 
@@ -62,26 +71,11 @@ async function fetchVideos() {
       pageToken = nextPageData.nextPageToken;
     }
 
-    // If we still don't have enough videos, fetch older ones without date restriction
-    if (videos.length < MIN_VIDEOS) {
-      const olderParams = new URLSearchParams({
-        part: 'snippet',
-        type: 'video',
-        order: 'date',
-        maxResults: MAX_RESULTS_PER_PAGE,
-        q: QUERY,
-        key: YOUTUBE_API_KEY
-      });
-
-      const olderRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${olderParams.toString()}`);
-      const olderData = await olderRes.json();
-
-      if (!olderRes.ok || olderData.error) {
-        throw new Error(olderData.error?.message || 'Failed to fetch older videos');
-      }
-
-      if (olderData.items) videos.push(...olderData.items);
-    }
+    // Filter out any videos older than 10 days
+    const tenDaysAgoDate = new Date(tenDaysAgo);
+    videos = videos.filter(video => 
+      new Date(video.snippet.publishedAt) >= tenDaysAgoDate
+    );
 
     // Get additional details for each video
     const videoIds = videos.map(video => video.id.videoId).join(',');
@@ -210,7 +204,6 @@ function displayVideos(videos) {
           <div class="video-info">
             <p class="video-title">${video.snippet.title}</p>
             <p class="channel-title">${video.snippet.channelTitle}</p>
-            <p class="video-views">${formatViews(video.statistics?.viewCount)}</p>
             ${video.snippet.description ? `<p class="video-description">${video.snippet.description}</p>` : ''}
           </div>
         </a>
