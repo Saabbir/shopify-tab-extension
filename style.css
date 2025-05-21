@@ -1,9 +1,9 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Roboto', Arial, sans-serif;
   margin: 0;
   padding: 0;
-  background-color: #f9f9f9;
-  color: #111;
+  background-color: #f5f5f5;
+  color: #212121;
 }
 
 .container {
@@ -16,76 +16,94 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
-  background-color: #ff0000;
+  padding: 16px 24px;
+  background-color: #1976d2;
   color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .header-left h1 {
   margin: 0;
   font-size: 24px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-}
-
-#user-email {
-  margin-right: 10px;
-  font-weight: bold;
-}
-
-#login-btn {
-  padding: 6px 12px;
-  font-size: 14px;
-  background-color: white;
-  color: #ff0000;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-#login-btn:hover {
-  background-color: #ffe5e5;
+  font-weight: 600;
 }
 
 main {
-  padding: 20px;
+  padding: 24px 0;
 }
 
 #loading {
   text-align: center;
-  padding: 20px;
-  color: #666;
+  padding: 32px;
+  color: #616161;
+  font-size: 16px;
 }
 
 #error-message {
   text-align: center;
-  padding: 20px;
-  color: #ff0000;
-  font-weight: bold;
+  padding: 32px;
+  color: #d32f2f;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .videos-grid {
   display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 24px;
+  padding: 24px 0;
+}
+
+.date-section {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+}
+
+.date-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.date-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #212121;
+  margin: 0;
+}
+
+.date-section-count {
+  font-size: 14px;
+  color: #616161;
+  font-weight: 500;
+}
+
+.date-section-grid {
+  display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  padding: 20px 0;
+  gap: 16px;
+  padding: 16px 0;
 }
 
 .video-card {
   background: white;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
+  position: relative;
 }
 
 .video-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .thumbnail {
@@ -107,7 +125,7 @@ main {
   margin: 0;
   font-size: 16px;
   line-height: 1.4;
-  color: #333;
+  color: #212121;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -118,13 +136,44 @@ main {
 .channel-title {
   margin: 8px 0;
   font-size: 14px;
-  color: #666;
+  color: #616161;
   font-weight: 500;
 }
 
 .video-date {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #888;
+  color: #757575;
+  font-weight: 400;
+}
+
+.video-duration {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.video-views {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #757575;
+  font-weight: 400;
+}
+
+.video-description {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #616161;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   font-weight: 400;
 }
