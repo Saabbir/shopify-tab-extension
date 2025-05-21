@@ -3,9 +3,9 @@ const CACHE_TIME_KEY = 'youtube_dev_feed_cache_time';
 const CACHE_TTL = 3600 * 1000;
 const AUTO_REFRESH_INTERVAL = 3600 * 1000; // 1 hour
 let refreshInterval = null;
-const MIN_VIDEOS = 20;
-const MAX_VIDEOS = 40;
-const QUERY = 'shopify development tutorial, shopify app development, shopify theme development, shopify store setup, shopify coding OR Shopify app development';
+const MIN_VIDEOS = 100;
+const MAX_VIDEOS = 100;
+const QUERY = 'shopify app development OR shopify theme development OR shopify store setup OR shopify liquid OR shopify api OR shopify tutorial OR shopify guide OR shopify store optimization OR shopify store design OR shopify store management OR shopify automation OR shopify apps OR shopify plugins OR shopify extensions OR shopify marketplace OR shopify business';
 const MAX_RESULTS_PER_PAGE = 50;
 const YOUTUBE_API_KEY = 'AIzaSyCSPWFb99cdOxw_4JHoSOcUs6OTIunDRDY';
 
