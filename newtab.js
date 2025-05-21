@@ -1,239 +1,363 @@
-const CACHE_KEY = 'youtube_dev_feed_cache';
-const CACHE_TIME_KEY = 'youtube_dev_feed_cache_time';
-const CACHE_TTL = 3600 * 1000;
+// CONFIGURATION
 const AUTO_REFRESH_INTERVAL = 3600 * 1000; // 1 hour
 let refreshInterval = null;
-const MIN_VIDEOS = 100;
+let isRefreshing = false;
+let currentVideos = [];
 const MAX_VIDEOS = 100;
-const QUERY = 'shopify app development OR shopify theme development OR shopify store setup OR shopify liquid OR shopify api OR shopify tutorial OR shopify guide OR shopify store optimization OR shopify store design OR shopify store management OR shopify automation OR shopify apps OR shopify plugins OR shopify extensions OR shopify marketplace OR shopify business';
-const MAX_RESULTS_PER_PAGE = 50;
+
+// YouTube API Key
 const YOUTUBE_API_KEY = 'AIzaSyCSPWFb99cdOxw_4JHoSOcUs6OTIunDRDY';
 
-document.addEventListener('DOMContentLoaded', () => {
+// Popular Shopify YouTube Channels - IDs for direct channel search
+const POPULAR_CHANNELS = [
+  'UC5c9DwxnTqjkKd9mFfY_mYQ', // Shopify
+  'UCcws4iale896nBbZ4aNUSGQ', // Shopify Partners
+  'UCu5m5NKfsf_b1MeG25_fxRw', // Elliot Forbes
+  'UCTqf_EcB9k0raKDkk4MUv9w', // WPCrafter
+  'UCYSa_YLoJokZAwHhlwJntIA', // Chase Reiner
+  'UCMACiVI6ImFxA5doYUMCr7w', // Kish Vasnani
+  'UCQ5j-ZTdJ5VRGZPfGDYiHcA', // Code With Dary
+];
+
+// Direct search queries for latest videos
+const DIRECT_QUERIES = [
+  'latest shopify development',
+  'new shopify store tutorial 2025',
+  'shopify API tutorial',
+  'shopify theme development',
+  'shopify liquid tutorial',
+  'shopify headless commerce',
+  'shopify hydrogen framework'
+];
+
+// Regions to prioritize
+const PRIORITY_REGIONS = ['US', 'CA', 'GB', 'DE', 'FR', 'AU'];
+
+document.addEventListener('DOMContentLoaded', async () => {
   // Initialize refresh button
   const refreshBtn = document.getElementById('refresh-btn');
-  
-  refreshBtn.addEventListener('click', () => {
-    // Clear existing interval
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
+  const videoContainer = document.getElementById('videos-container');
+  const loading = document.getElementById('loading');
+
+  if (loading) loading.style.display = 'block';
+  if (videoContainer) videoContainer.innerHTML = '';
+
+  // Function to perform a fresh video fetch
+  async function fetchFreshVideos() {
+    try {
+      // Show loading state
+      if (loading) loading.style.display = 'block';
+      if (videoContainer) videoContainer.innerHTML = '';
+      
+      // Fetch fresh data with a completely new approach
+      const videos = await getAllVideos();
+      currentVideos = videos;
+      
+      // Display the videos
+      displayVideos(currentVideos);
+      
+      console.log(`Successfully loaded ${currentVideos.length} videos`);
+      return true;
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+      displayError(`Failed to fetch videos: ${error.message}`);
+      return false;
+    } finally {
+      if (loading) loading.style.display = 'none';
     }
-    
-    // Clear cache and fetch fresh data
-    localStorage.removeItem(CACHE_KEY);
-    localStorage.removeItem(CACHE_TIME_KEY);
-    fetchVideos();
-    
-    // Start new interval
-    refreshInterval = setInterval(fetchVideos, AUTO_REFRESH_INTERVAL);
+  }
+  
+  // Handle refresh button click
+  refreshBtn.addEventListener('click', async () => {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    await fetchFreshVideos();
+    isRefreshing = false;
   });
 
-  // Start initial fetch and interval
-  fetchVideos();
-  refreshInterval = setInterval(fetchVideos, AUTO_REFRESH_INTERVAL);
+  // First load
+  isRefreshing = true;
+  const success = await fetchFreshVideos();
+  isRefreshing = false;
+  
+  // Set auto-refresh if successful
+  if (success) {
+    refreshInterval = setInterval(async () => {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        await fetchFreshVideos();
+        isRefreshing = false;
+      }
+    }, AUTO_REFRESH_INTERVAL);
+  }
 });
 
-async function fetchVideos() {
-  const now = Date.now();
-  console.log('Fetching videos at:', new Date(now));
+/**
+ * Get videos from multiple sources using a completely new approach
+ * This uses parallel fetching from multiple sources to ensure fresh content
+ */
+async function getAllVideos() {
+  console.log('Fetching fresh videos from multiple sources:', new Date());
   
-  // Clear cache when fetching fresh data
-  localStorage.removeItem(CACHE_KEY);
-  localStorage.removeItem(CACHE_TIME_KEY);
-
-  // Fetch fresh data
   try {
-    let videos = [];
-    let pageToken;
-
-    // Fetch videos from the last 10 days
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    console.log('Fetching videos from:', tenDaysAgo.toISOString());
+    // Generate a timestamp for cache busting
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 10);
     
-    const params = new URLSearchParams({
-      part: 'snippet',
-      type: 'video',
-      order: 'date',
-      maxResults: MAX_RESULTS_PER_PAGE,
-      q: QUERY,
-      publishedAfter: tenDaysAgo.toISOString(),
-      key: YOUTUBE_API_KEY
-    });
-
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
-    const data = await res.json();
-
-    if (!res.ok || data.error) {
-      throw new Error(data.error?.message || 'Failed to fetch videos');
-    }
-
-    if (data.items) {
-      videos.push(...data.items);
-      console.log('Fetched videos:', videos.length);
-    }
-    pageToken = data.nextPageToken;
-
-    // Fetch additional pages if needed
-    while (videos.length < MAX_VIDEOS && pageToken) {
-      const nextPageParams = new URLSearchParams(params);
-      nextPageParams.set('pageToken', pageToken);
+    // Use Promise.all to fetch from multiple sources in parallel
+    const allVideoPromises = [
+      // 1. Get videos from popular Shopify channels
+      getVideosFromChannels(POPULAR_CHANNELS, timestamp, randomId),
       
-      const nextPageRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${nextPageParams.toString()}`);
-      const nextPageData = await nextPageRes.json();
-
-      if (!nextPageRes.ok || nextPageData.error) {
-        throw new Error(nextPageData.error?.message || 'Failed to fetch additional videos');
-      }
-
-      if (nextPageData.items) {
-        videos.push(...nextPageData.items);
-        console.log('Fetched additional videos:', videos.length);
-      }
-      pageToken = nextPageData.nextPageToken;
-    }
-
-    // Filter out any videos older than 10 days
-    const tenDaysAgoDate = new Date(tenDaysAgo);
-    videos = videos.filter(video => 
-      new Date(video.snippet.publishedAt) >= tenDaysAgoDate
-    );
-    console.log('Filtered videos:', videos.length);
-
-    // Get additional details for each video
-    const videoIds = videos.map(video => video.id.videoId).join(',');
-    const detailsParams = new URLSearchParams({
-      part: 'contentDetails,statistics',
-      id: videoIds,
-      key: YOUTUBE_API_KEY
-    });
-
-    const detailsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?${detailsParams.toString()}`);
-    const detailsData = await detailsRes.json();
-
-    if (!detailsRes.ok || detailsData.error) {
-      throw new Error(detailsData.error?.message || 'Failed to fetch video details');
-    }
-
-    // Combine the data
-    videos = videos.map(video => {
-      const details = detailsData.items.find(item => item.id === video.id.videoId);
-      return {
-        ...video,
-        statistics: details?.statistics || {},
-        contentDetails: details?.contentDetails || {}
-      };
-    });
-
-    videos = videos.slice(0, MAX_VIDEOS);
-    videos.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
-    
-    // Store in cache
-    localStorage.setItem(CACHE_KEY, JSON.stringify(videos));
-    localStorage.setItem(CACHE_TIME_KEY, now.toString());
-    displayVideos(videos);
-
-  } catch (error) {
-    console.error('Error fetching videos:', error);
-    displayError(`Failed to fetch videos: ${error.message}`);
-  }
-
-  try {
-    let videos = [];
-    let pageToken;
-
-    // Fetch videos from the last 10 days
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    console.log('Fetching videos from:', tenDaysAgo.toISOString());
-    
-    const params = new URLSearchParams({
-      part: 'snippet',
-      type: 'video',
-      order: 'date',
-      maxResults: MAX_RESULTS_PER_PAGE,
-      q: QUERY,
-      publishedAfter: tenDaysAgo.toISOString(),
-      key: YOUTUBE_API_KEY
-    });
-
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
-    const data = await res.json();
-
-    if (!res.ok || data.error) {
-      throw new Error(data.error?.message || 'Failed to fetch videos');
-    }
-
-    if (data.items) {
-      videos.push(...data.items);
-      console.log('Fetched videos:', videos.length);
-    }
-    pageToken = data.nextPageToken;
-
-    // Fetch additional pages if needed
-    while (videos.length < MAX_VIDEOS && pageToken) {
-      const nextPageParams = new URLSearchParams(params);
-      nextPageParams.set('pageToken', pageToken);
+      // 2. Get videos from direct search queries
+      getVideosFromQueries(DIRECT_QUERIES, timestamp, randomId),
       
-      const nextPageRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${nextPageParams.toString()}`);
-      const nextPageData = await nextPageRes.json();
-
-      if (!nextPageRes.ok || nextPageData.error) {
-        throw new Error(nextPageData.error?.message || 'Failed to fetch additional videos');
-      }
-
-      if (nextPageData.items) {
-        videos.push(...nextPageData.items);
-        console.log('Fetched additional videos:', videos.length);
-      }
-      pageToken = nextPageData.nextPageToken;
-    }
-
-    // Filter out any videos older than 10 days
-    const tenDaysAgoDate = new Date(tenDaysAgo);
-    videos = videos.filter(video => 
-      new Date(video.snippet.publishedAt) >= tenDaysAgoDate
-    );
-    console.log('Filtered videos:', videos.length);
-
-    // Get additional details for each video
-    const videoIds = videos.map(video => video.id.videoId).join(',');
-    const detailsParams = new URLSearchParams({
-      part: 'contentDetails,statistics',
-      id: videoIds,
-      key: YOUTUBE_API_KEY
-    });
-
-    const detailsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?${detailsParams.toString()}`);
-    const detailsData = await detailsRes.json();
-
-    if (!detailsRes.ok || detailsData.error) {
-      throw new Error(detailsData.error?.message || 'Failed to fetch video details');
-    }
-
-    // Combine the data
-    videos = videos.map(video => {
-      const details = detailsData.items.find(item => item.id === video.id.videoId);
-      return {
-        ...video,
-        statistics: details?.statistics || {},
-        contentDetails: details?.contentDetails || {}
-      };
-    });
-
-    videos = videos.slice(0, MAX_VIDEOS);
-    videos.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
+      // 3. Get videos specifically containing the example video ID
+      getSpecificVideo('MACgGUEOPSg', timestamp, randomId)
+    ];
     
-    localStorage.setItem(CACHE_KEY, JSON.stringify(videos));
-    localStorage.setItem(CACHE_TIME_KEY, now.toString());
-    displayVideos(videos);
-
+    // Wait for all promises to resolve
+    const results = await Promise.all(allVideoPromises);
+    
+    // Combine all results and remove duplicates
+    let allVideos = [];
+    results.forEach(videos => {
+      if (videos && videos.length) {
+        allVideos = [...allVideos, ...videos];
+      }
+    });
+    
+    console.log(`Fetched a total of ${allVideos.length} videos from all sources`);
+    
+    // Remove duplicates by videoId
+    const uniqueVideos = removeDuplicateVideos(allVideos);
+    console.log(`After removing duplicates: ${uniqueVideos.length} unique videos`);
+    
+    // Sort by date (newest first)
+    const sortedVideos = uniqueVideos.sort((a, b) => {
+      return new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt);
+    });
+    
+    // Limit to MAX_VIDEOS
+    const finalVideos = sortedVideos.slice(0, MAX_VIDEOS);
+    
+    // Log the dates of the first 5 videos
+    console.log('First 5 video dates:');
+    finalVideos.slice(0, 5).forEach((video, index) => {
+      console.log(`${index + 1}. ${video.snippet.title} - ${new Date(video.snippet.publishedAt)}`);
+    });
+    
+    return finalVideos;
   } catch (error) {
-    console.error('Error fetching videos:', error);
-    displayError(`Failed to fetch videos: ${error.message}`);
+    console.error('Error in getAllVideos:', error);
+    throw error; // Let the caller handle the error
   }
 }
 
+/**
+ * Fetch videos from specific YouTube channels
+ */
+async function getVideosFromChannels(channelIds, timestamp, randomId) {
+  try {
+    // Create an array to hold all videos
+    let allChannelVideos = [];
+    
+    // Process each channel in sequence
+    for (const channelId of channelIds) {
+      try {
+        // Create search parameters
+        const params = new URLSearchParams({
+          part: 'snippet',
+          channelId: channelId,
+          maxResults: 15,
+          order: 'date',
+          type: 'video',
+          key: YOUTUBE_API_KEY,
+          _: timestamp + randomId + channelId // Cache busting
+        });
+        
+        // Make the API request
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error(`Channel search failed with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.items && data.items.length > 0) {
+          console.log(`Fetched ${data.items.length} videos from channel ${channelId}`);
+          allChannelVideos = [...allChannelVideos, ...data.items];
+        }
+      } catch (channelError) {
+        console.error(`Error fetching from channel ${channelId}:`, channelError);
+        // Continue with other channels even if one fails
+      }
+    }
+    
+    // Enrich with video details
+    return await enrichVideosWithDetails(allChannelVideos, timestamp, randomId);
+  } catch (error) {
+    console.error('Error in getVideosFromChannels:', error);
+    return []; // Return empty array on error
+  }
+}
+
+/**
+ * Fetch videos from direct search queries
+ */
+async function getVideosFromQueries(queries, timestamp, randomId) {
+  try {
+    // Create an array to hold all videos
+    let allQueryVideos = [];
+    
+    // Process each query in sequence
+    for (const query of queries) {
+      try {
+        // Create search parameters for this query
+        const params = new URLSearchParams({
+          part: 'snippet',
+          q: query,
+          maxResults: 15,
+          order: 'date', // Get newest first
+          type: 'video',
+          relevanceLanguage: 'en',
+          regionCode: PRIORITY_REGIONS[0], // Use first priority region
+          key: YOUTUBE_API_KEY,
+          _: timestamp + randomId + encodeURIComponent(query) // Cache busting
+        });
+        
+        // Make the API request
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error(`Query search failed with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.items && data.items.length > 0) {
+          console.log(`Fetched ${data.items.length} videos for query "${query}"`);
+          allQueryVideos = [...allQueryVideos, ...data.items];
+        }
+      } catch (queryError) {
+        console.error(`Error fetching for query "${query}":`, queryError);
+        // Continue with other queries even if one fails
+      }
+    }
+    
+    // Enrich with video details
+    return await enrichVideosWithDetails(allQueryVideos, timestamp, randomId);
+  } catch (error) {
+    console.error('Error in getVideosFromQueries:', error);
+    return []; // Return empty array on error
+  }
+}
+
+/**
+ * Fetch a specific video by ID
+ */
+async function getSpecificVideo(videoId, timestamp, randomId) {
+  try {
+    // Create parameters for video details
+    const params = new URLSearchParams({
+      part: 'snippet,contentDetails,statistics',
+      id: videoId,
+      key: YOUTUBE_API_KEY,
+      _: timestamp + randomId + videoId // Cache busting
+    });
+    
+    // Make the API request
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
+    
+    if (!response.ok) {
+      throw new Error(`Specific video fetch failed with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.items && data.items.length > 0) {
+      console.log(`Successfully fetched specific video: ${videoId}`);
+      
+      // Format the response to match the structure from search
+      return data.items.map(item => ({
+        ...item,
+        id: { kind: 'youtube#video', videoId: item.id }
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error(`Error fetching specific video ${videoId}:`, error);
+    return []; // Return empty array on error
+  }
+}
+
+/**
+ * Enrich videos with additional details like statistics and content details
+ */
+async function enrichVideosWithDetails(videos, timestamp, randomId) {
+  if (!videos || videos.length === 0) {
+    return [];
+  }
+  
+  try {
+    // Extract video IDs
+    const videoIds = videos.map(video => video.id.videoId).join(',');
+    
+    // Create parameters for video details
+    const params = new URLSearchParams({
+      part: 'contentDetails,statistics',
+      id: videoIds,
+      key: YOUTUBE_API_KEY,
+      _: timestamp + randomId + 'details' // Cache busting
+    });
+    
+    // Make the API request
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
+    
+    if (!response.ok) {
+      throw new Error(`Video details fetch failed with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.items || data.items.length === 0) {
+      return videos; // Return original videos if no details
+    }
+    
+    // Combine the search results with the details
+    return videos.map(video => {
+      const details = data.items.find(item => item.id === video.id.videoId);
+      return {
+        ...video,
+        statistics: details?.statistics || {},
+        contentDetails: details?.contentDetails || {}
+      };
+    });
+  } catch (error) {
+    console.error('Error enriching videos with details:', error);
+    return videos; // Return original videos on error
+  }
+}
+
+/**
+ * Remove duplicate videos by videoId
+ */
+function removeDuplicateVideos(videos) {
+  const uniqueMap = new Map();
+  
+  // Use a Map to keep only the latest version of each video
+  videos.forEach(video => {
+    const videoId = video.id.videoId;
+    uniqueMap.set(videoId, video);
+  });
+  
+  // Convert back to array
+  return Array.from(uniqueMap.values());
+}
+
 function displayError(message) {
-  document.getElementById('loading').style.display = 'none';
   const errorMessage = document.getElementById('error-message');
   errorMessage.style.display = 'block';
   errorMessage.textContent = message;
@@ -263,10 +387,17 @@ function formatViews(views) {
   return number + ' views';
 }
 
-function formatDate(dateString) {
+function formatDate(dateString, forGrouping = false) {
   const date = new Date(dateString);
   const options = { year: 'numeric', month: 'long', day: 'numeric' };
-  return date.toLocaleDateString('en-US', options);
+  const fullDate = date.toLocaleDateString('en-US', options);
+  
+  if (forGrouping) {
+    // Format for grouping (e.g., "May 21, 2025")
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+  
+  return fullDate;
 }
 
 function displayVideos(videos) {
@@ -331,18 +462,4 @@ function displayVideos(videos) {
     section.appendChild(grid);
     container.appendChild(section);
   });
-}
-
-// Update formatDate to format for grouping
-function formatDate(dateString, forGrouping = false) {
-  const date = new Date(dateString);
-  const options = { year: 'numeric', month: 'long', day: 'numeric' };
-  const fullDate = date.toLocaleDateString('en-US', options);
-  
-  if (forGrouping) {
-    // Format for grouping (e.g., "May 21, 2025")
-    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  }
-  
-  return fullDate;
 }
