@@ -5,10 +5,13 @@
   "version": "1.0",
   "permissions": [
     "storage",
-    "scripting",
-    "https://www.googleapis.com/*"
+    "scripting"
   ],
-  "host_permissions": ["https://www.googleapis.com/*"],
+  "host_permissions": [
+    "https://www.googleapis.com/*",
+    "https://www.youtube.com/*",
+    "https://*.ytimg.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },

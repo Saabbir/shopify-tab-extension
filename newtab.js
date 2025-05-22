@@ -8,87 +8,95 @@ let isRefreshing = false;
 let currentVideos = [];
 const MAX_VIDEOS = 100;
 
-// YouTube API Key
-const YOUTUBE_API_KEY = 'AIzaSyCSPWFb99cdOxw_4JHoSOcUs6OTIunDRDY';
-
-// Popular Shopify YouTube Channels - IDs for direct channel search
-const POPULAR_CHANNELS = [
-  'UC5c9DwxnTqjkKd9mFfY_mYQ', // Shopify
-  'UCcws4iale896nBbZ4aNUSGQ', // Shopify Partners
-  'UCu5m5NKfsf_b1MeG25_fxRw', // Elliot Forbes
-  'UCTqf_EcB9k0raKDkk4MUv9w', // WPCrafter
-  'UCYSa_YLoJokZAwHhlwJntIA', // Chase Reiner
-  'UCMACiVI6ImFxA5doYUMCr7w', // Kish Vasnani
-  'UCQ5j-ZTdJ5VRGZPfGDYiHcA', // Code With Dary
+// Blocked channel IDs - add channel handles to block
+const BLOCKED_CHANNELS = [
+  // Example: '@someChannelHandle' 
+  // Add more channel handles to block here
 ];
 
-// Direct search queries for latest videos
-const DIRECT_QUERIES = [
-  'latest shopify development',
-  'new shopify store tutorial 2025',
-  'shopify API tutorial',
-  'shopify theme development',
-  'shopify liquid tutorial',
-  'shopify headless commerce',
-  'shopify hydrogen framework'
+// Popular Shopify YouTube Channels with their channel IDs
+const SHOPIFY_CHANNELS = [
+  { id: 'UC5c9DwxnTqjkKd9mFfY_mYQ', name: 'Shopify' },
+  { id: 'UCP8i8Y0LcLaSueDGkXgCNQQ', name: 'Shopify Developers' },
+  { id: 'UCcws4iale896nBbZ4aNUSGQ', name: 'Shopify Partners' },
+  { id: 'UCu5m5NKfsf_b1MeG25_fxRw', name: 'Elliot Forbes' },
+  { id: 'UCTqf_EcB9k0raKDkk4MUv9w', name: 'WPCrafter' },
+  { id: 'UCYSa_YLoJokZAwHhlwJntIA', name: 'Chase Reiner' },
+  { id: 'UCMACiVI6ImFxA5doYUMCr7w', name: 'Kish Vasnani' },
+  { id: 'UCQ5j-ZTdJ5VRGZPfGDYiHcA', name: 'Code With Dary' }
 ];
 
-// Regions to prioritize
-const PRIORITY_REGIONS = ['US', 'CA', 'GB', 'DE', 'FR', 'AU'];
+// Search terms to look for in video titles for relevance
+const RELEVANCE_TERMS = [
+  'shopify',
+  'ecommerce',
+  'store',
+  'theme',
+  'development',
+  'app',
+  'tutorial',
+  'guide',
+  'api',
+  'liquid',
+  'hydrogen',
+  'checkout',
+  'headless',
+  'commerce'
+];
+
+/**
+ * Check if cache is valid (exists and not expired)
+ */
+function isCacheValid() {
+  const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+  if (!timestamp) return false;
+  
+  const cachedTime = parseInt(timestamp, 10);
+  const now = Date.now();
+  const isValid = now - cachedTime < CACHE_DURATION;
+  
+  console.log(`Cache status: ${isValid ? 'Valid' : 'Expired'} (${Math.round((now - cachedTime) / 60000)} minutes old)`);
+  return isValid;
+}
+
+/**
+ * Save videos to cache
+ */
+function saveToCache(videos) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(videos));
+    localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+    console.log(`Saved ${videos.length} videos to cache at ${new Date().toLocaleTimeString()}`);
+  } catch (error) {
+    console.error('Error saving to cache:', error);
+    // If saving fails (e.g., quota exceeded), clear cache to make room
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+  }
+}
+
+/**
+ * Get videos from cache
+ */
+function getFromCache() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    
+    const videos = JSON.parse(cached);
+    console.log(`Retrieved ${videos.length} videos from cache`);
+    return videos;
+  } catch (error) {
+    console.error('Error getting from cache:', error);
+    return null;
+  }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Initialize UI elements
   const refreshBtn = document.getElementById('refresh-btn');
   const videoContainer = document.getElementById('videos-container');
   const loading = document.getElementById('loading');
-
-  /**
-   * Check if cache is valid (exists and not expired)
-   */
-  function isCacheValid() {
-    const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-    if (!timestamp) return false;
-    
-    const cachedTime = parseInt(timestamp, 10);
-    const now = Date.now();
-    const isValid = now - cachedTime < CACHE_DURATION;
-    
-    console.log(`Cache status: ${isValid ? 'Valid' : 'Expired'} (${Math.round((now - cachedTime) / 60000)} minutes old)`);
-    return isValid;
-  }
-  
-  /**
-   * Save videos to cache
-   */
-  function saveToCache(videos) {
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(videos));
-      localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
-      console.log(`Saved ${videos.length} videos to cache at ${new Date().toLocaleTimeString()}`);
-    } catch (error) {
-      console.error('Error saving to cache:', error);
-      // If saving fails (e.g., quota exceeded), clear cache to make room
-      localStorage.removeItem(CACHE_KEY);
-      localStorage.removeItem(CACHE_TIMESTAMP_KEY);
-    }
-  }
-  
-  /**
-   * Get videos from cache
-   */
-  function getFromCache() {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (!cached) return null;
-      
-      const videos = JSON.parse(cached);
-      console.log(`Retrieved ${videos.length} videos from cache`);
-      return videos;
-    } catch (error) {
-      console.error('Error getting from cache:', error);
-      return null;
-    }
-  }
 
   /**
    * Fetch fresh videos and update cache
@@ -162,64 +170,237 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Get videos from multiple sources using a completely new approach
- * This uses parallel fetching from multiple sources to ensure fresh content
+ * Get videos from YouTube using RSS feeds (no API key required)
  */
 async function getAllVideos() {
-  console.log('Fetching fresh videos from multiple sources:', new Date());
+  console.log('Fetching videos:', new Date());
+  
+  // First check if we can use cache
+  if (isCacheValid()) {
+    const cachedData = getFromCache();
+    if (cachedData && cachedData.length > 0) {
+      console.log(`Using ${cachedData.length} cached videos`);
+      return cachedData;
+    }
+  }
   
   try {
-    // Generate a timestamp for cache busting
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 10);
-    
-    // Use Promise.all to fetch from multiple sources in parallel
-    const allVideoPromises = [
-      // 1. Get videos from popular Shopify channels
-      getVideosFromChannels(POPULAR_CHANNELS, timestamp, randomId),
-      
-      // 2. Get videos from direct search queries
-      getVideosFromQueries(DIRECT_QUERIES, timestamp, randomId),
-      
-      // 3. Get videos specifically containing the example video ID
-      getSpecificVideo('MACgGUEOPSg', timestamp, randomId)
-    ];
-    
-    // Wait for all promises to resolve
-    const results = await Promise.all(allVideoPromises);
-    
-    // Combine all results and remove duplicates
+    // Collect videos from all channel RSS feeds
     let allVideos = [];
-    results.forEach(videos => {
+    
+    // Function to fetch RSS feed from a channel
+    async function fetchChannelFeed(channel) {
+      try {
+        // YouTube RSS feed URL for channel using channel ID
+        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`;
+        
+        console.log(`Fetching RSS feed for ${channel.name}...`);
+        const response = await fetch(feedUrl);
+        
+        if (!response.ok) {
+          console.error(`RSS feed request failed for ${channel.name}: ${response.status}`);
+          throw new Error(`Could not fetch RSS feed for ${channel.name}`);
+        }
+        
+        const text = await response.text();
+        return parseRssFeed(text, channel.name, channel.id);
+      } catch (error) {
+        console.error(`Error fetching channel ${channel.name}:`, error);
+        return [];
+      }
+    }
+    
+    // Function to parse XML RSS feed
+    function parseRssFeed(xmlText, channelName, channelId) {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+        const entries = xmlDoc.querySelectorAll('entry');
+        
+        console.log(`Parsing ${entries.length} videos from ${channelName}`);
+        
+        const videos = [];
+        entries.forEach(entry => {
+          try {
+            // Helper function to handle different namespace variations
+            function getElementContent(parent, tagName) {
+              // Try different namespace variations
+              const selectors = [
+                tagName,
+                `yt\\:${tagName}`,
+                `media\\:${tagName}`,
+                `*|${tagName}`
+              ];
+              
+              for (const selector of selectors) {
+                const element = parent.querySelector(selector);
+                if (element?.textContent) {
+                  return element.textContent;
+                }
+              }
+              return '';
+            }
+            
+            // Get video information from RSS entry
+            const videoId = getElementContent(entry, 'videoId');
+            if (!videoId) return;
+            
+            const title = getElementContent(entry, 'title');
+            const published = getElementContent(entry, 'published');
+            const updated = getElementContent(entry, 'updated');
+            const link = entry.querySelector('link')?.getAttribute('href') || '';
+            const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+            
+            // Only include relevant videos
+            if (isRelevantVideo(title)) {
+              videos.push({
+                id: { kind: 'youtube#video', videoId },
+                snippet: {
+                  publishedAt: published,
+                  title,
+                  description: entry.querySelector('media\\:description')?.textContent || 
+                              entry.querySelector('content')?.textContent || '',
+                  thumbnails: {
+                    default: { url: thumbnailUrl.replace('mqdefault', 'default') },
+                    medium: { url: thumbnailUrl },
+                    high: { url: thumbnailUrl.replace('mqdefault', 'hqdefault') }
+                  },
+                  channelTitle: channelName,
+                  channelId: channelId, // Use the provided channel ID
+                  channelHandle: channelName
+                }
+              });
+            }
+          } catch (entryError) {
+            console.warn('Error processing an entry:', entryError);
+            // Continue with other entries
+          }
+        });
+        
+        return videos;
+      } catch (parseError) {
+        console.error('Error parsing RSS feed:', parseError);
+        return [];
+      }
+    }
+    
+    // Function to check if video is relevant based on title
+    function isRelevantVideo(title) {
+      title = title.toLowerCase();
+      return RELEVANCE_TERMS.some(term => title.includes(term.toLowerCase()));
+    }
+    
+    // Fetch from all channels in parallel
+    const channelPromises = SHOPIFY_CHANNELS.map(channel => fetchChannelFeed(channel));
+    const channelResults = await Promise.all(channelPromises);
+    
+    // Combine results
+    channelResults.forEach(videos => {
       if (videos && videos.length) {
         allVideos = [...allVideos, ...videos];
       }
     });
     
-    console.log(`Fetched a total of ${allVideos.length} videos from all sources`);
+    console.log(`Total videos from all channels: ${allVideos.length}`);
     
-    // Remove duplicates by videoId
-    const uniqueVideos = removeDuplicateVideos(allVideos);
-    console.log(`After removing duplicates: ${uniqueVideos.length} unique videos`);
+    // Filter out blocked channels
+    const filteredVideos = allVideos.filter(video => {
+      if (BLOCKED_CHANNELS.includes(video.snippet?.channelTitle)) {
+        console.log(`Filtered out video from blocked channel: ${video.snippet.channelTitle}`);
+        return false;
+      }
+      return true;
+    });
     
     // Sort by date (newest first)
-    const sortedVideos = uniqueVideos.sort((a, b) => {
+    const sortedVideos = filteredVideos.sort((a, b) => {
       return new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt);
     });
     
     // Limit to MAX_VIDEOS
     const finalVideos = sortedVideos.slice(0, MAX_VIDEOS);
     
-    // Log the dates of the first 5 videos
-    console.log('First 5 video dates:');
-    finalVideos.slice(0, 5).forEach((video, index) => {
-      console.log(`${index + 1}. ${video.snippet.title} - ${new Date(video.snippet.publishedAt)}`);
-    });
+    // Save to cache for future use
+    saveToCache(finalVideos);
     
+    console.log(`Final video count: ${finalVideos.length}`);
     return finalVideos;
   } catch (error) {
-    console.error('Error in getAllVideos:', error);
-    throw error; // Let the caller handle the error
+    console.error('Error fetching videos:', error);
+    
+    // Try to use cache even if it's expired in case of errors
+    const cachedData = getFromCache();
+    if (cachedData && cachedData.length > 0) {
+      console.log(`Using ${cachedData.length} cached videos as fallback after error`);
+      return cachedData;
+    }
+    
+    return [];
+  }
+}
+
+/**
+ * Filter videos by channel subscriber count
+ * Only keeps videos from channels with at least MIN_SUBSCRIBER_COUNT subscribers
+ */
+async function filterBySubscriberCount(videos, timestamp, randomId) {
+  if (!videos || videos.length === 0) return [];
+  
+  try {
+    // Get unique channel IDs
+    const channelIds = [...new Set(videos.map(video => video.snippet.channelId))];
+    
+    // Create a map to store subscriber counts
+    const subscriberCounts = {};
+    
+    // Process channels in batches to avoid exceeding API quota
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < channelIds.length; i += BATCH_SIZE) {
+      const batchIds = channelIds.slice(i, i + BATCH_SIZE);
+      const batchIdString = batchIds.join(',');
+      
+      // Create params for channel details
+      const params = new URLSearchParams({
+        part: 'statistics',
+        id: batchIdString,
+        key: YOUTUBE_API_KEY,
+        _: timestamp + randomId + 'channels' // Cache busting
+      });
+      
+      // Make the API request
+      const response = await fetch(`https://www.googleapis.com/youtube/v3/channels?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`Channel details fetch failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Store subscriber counts
+      if (data.items && data.items.length > 0) {
+        data.items.forEach(channel => {
+          subscriberCounts[channel.id] = parseInt(channel.statistics.subscriberCount || '0', 10);
+        });
+      }
+    }
+    
+    // Filter videos by subscriber count
+    return videos.filter(video => {
+      const channelId = video.snippet.channelId;
+      const subscribers = subscriberCounts[channelId] || 0;
+      
+      // Include if it meets the minimum subscriber threshold
+      const meetsThreshold = subscribers >= MIN_SUBSCRIBER_COUNT;
+      
+      if (!meetsThreshold) {
+        console.log(`Filtered out video from channel ${video.snippet.channelTitle} with only ${subscribers} subscribers`);
+      }
+      
+      return meetsThreshold;
+    });
+  } catch (error) {
+    console.error('Error filtering by subscriber count:', error);
+    return videos; // Return original videos if there's an error
   }
 }
 
@@ -514,10 +695,18 @@ function displayVideos(videos) {
     videosByDate[date].forEach(video => {
       const card = document.createElement('div');
       card.className = 'video-card';
+      
+      // Only show duration if it exists
+      const durationElement = video.contentDetails?.duration 
+        ? `<div class="video-duration">${formatDuration(video.contentDetails.duration)}</div>` 
+        : '';
+      
       card.innerHTML = `
         <a href="https://www.youtube.com/watch?v=${video.id.videoId}" target="_blank">
-          <img class="thumbnail" src="${video.snippet.thumbnails.medium.url}" alt="thumbnail">
-          ${video.contentDetails?.duration ? `<div class="video-duration">${formatDuration(video.contentDetails.duration)}</div>` : ''}
+          <div class="thumbnail-container">
+            <img class="thumbnail" src="${video.snippet.thumbnails.medium.url}" alt="thumbnail">
+            ${durationElement}
+          </div>
           <div class="video-info">
             <p class="video-title">${video.snippet.title}</p>
             <p class="channel-title">${video.snippet.channelTitle}</p>
