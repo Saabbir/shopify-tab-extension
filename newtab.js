@@ -35,8 +35,8 @@ const SHOPIFY_CHANNELS = [
 
 // We'll add some fallback channel IDs that work well (confirmed working)
 const FALLBACK_CHANNELS = [
-  { id: 'UCYSa_YLoJokZAwHhlwJntIA', name: 'Chase Reiner' }, // Known working channel
-  { id: 'UCNSzdxDr0vRXq_5F5LG3FKw', name: 'Shopify Help Center' }
+  { id: 'UCwqNzzV8FmCyGWLfJW8MMSg', name: 'CodingWithJan', handle: 'CodingWithJan' }, // Known working channel
+  { id: 'UCf-fJjjCIpXbaUJRmevVLsg', name: 'LiquidWeekly', handle: 'LiquidWeekly' },
 ];
 
 // Search terms to look for in video titles for relevance
