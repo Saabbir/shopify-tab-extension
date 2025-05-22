@@ -1,4 +1,7 @@
 // CONFIGURATION
+const CACHE_KEY = 'shopify_videos_cache';
+const CACHE_TIMESTAMP_KEY = 'shopify_videos_timestamp';
+const CACHE_DURATION = 3600 * 1000; // 1 hour in milliseconds
 const AUTO_REFRESH_INTERVAL = 3600 * 1000; // 1 hour
 let refreshInterval = null;
 let isRefreshing = false;
@@ -34,29 +37,79 @@ const DIRECT_QUERIES = [
 const PRIORITY_REGIONS = ['US', 'CA', 'GB', 'DE', 'FR', 'AU'];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize refresh button
+  // Initialize UI elements
   const refreshBtn = document.getElementById('refresh-btn');
   const videoContainer = document.getElementById('videos-container');
   const loading = document.getElementById('loading');
 
-  if (loading) loading.style.display = 'block';
-  if (videoContainer) videoContainer.innerHTML = '';
+  /**
+   * Check if cache is valid (exists and not expired)
+   */
+  function isCacheValid() {
+    const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+    if (!timestamp) return false;
+    
+    const cachedTime = parseInt(timestamp, 10);
+    const now = Date.now();
+    const isValid = now - cachedTime < CACHE_DURATION;
+    
+    console.log(`Cache status: ${isValid ? 'Valid' : 'Expired'} (${Math.round((now - cachedTime) / 60000)} minutes old)`);
+    return isValid;
+  }
+  
+  /**
+   * Save videos to cache
+   */
+  function saveToCache(videos) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(videos));
+      localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+      console.log(`Saved ${videos.length} videos to cache at ${new Date().toLocaleTimeString()}`);
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+      // If saving fails (e.g., quota exceeded), clear cache to make room
+      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+    }
+  }
+  
+  /**
+   * Get videos from cache
+   */
+  function getFromCache() {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) return null;
+      
+      const videos = JSON.parse(cached);
+      console.log(`Retrieved ${videos.length} videos from cache`);
+      return videos;
+    } catch (error) {
+      console.error('Error getting from cache:', error);
+      return null;
+    }
+  }
 
-  // Function to perform a fresh video fetch
+  /**
+   * Fetch fresh videos and update cache
+   */
   async function fetchFreshVideos() {
     try {
       // Show loading state
       if (loading) loading.style.display = 'block';
       if (videoContainer) videoContainer.innerHTML = '';
       
-      // Fetch fresh data with a completely new approach
+      // Fetch fresh data
       const videos = await getAllVideos();
       currentVideos = videos;
+      
+      // Save to cache
+      saveToCache(videos);
       
       // Display the videos
       displayVideos(currentVideos);
       
-      console.log(`Successfully loaded ${currentVideos.length} videos`);
+      console.log(`Successfully loaded ${currentVideos.length} fresh videos`);
       return true;
     } catch (error) {
       console.error('Error fetching videos:', error);
@@ -67,29 +120,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   
-  // Handle refresh button click
-  refreshBtn.addEventListener('click', async () => {
-    if (isRefreshing) return;
+  /**
+   * Display videos from cache or fetch fresh ones
+   */
+  async function loadVideos(forceRefresh = false) {
+    if (isRefreshing) return false;
     isRefreshing = true;
-    await fetchFreshVideos();
-    isRefreshing = false;
-  });
-
-  // First load
-  isRefreshing = true;
-  const success = await fetchFreshVideos();
-  isRefreshing = false;
-  
-  // Set auto-refresh if successful
-  if (success) {
-    refreshInterval = setInterval(async () => {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        await fetchFreshVideos();
-        isRefreshing = false;
+    
+    try {
+      // Check if we can use cache
+      if (!forceRefresh && isCacheValid()) {
+        const cachedVideos = getFromCache();
+        if (cachedVideos && cachedVideos.length > 0) {
+          currentVideos = cachedVideos;
+          displayVideos(currentVideos);
+          console.log('Using cached videos');
+          return true;
+        }
       }
-    }, AUTO_REFRESH_INTERVAL);
+      
+      // If no valid cache or forced refresh, fetch fresh data
+      return await fetchFreshVideos();
+    } finally {
+      isRefreshing = false;
+    }
   }
+  
+  // Handle refresh button click - force refresh
+  refreshBtn.addEventListener('click', () => loadVideos(true));
+
+  // Initial load - use cache if available
+  await loadVideos(false);
+  
+  // Set up auto-refresh when cache expires
+  refreshInterval = setInterval(async () => {
+    // Only refresh if cache is expired
+    if (!isCacheValid() && !isRefreshing) {
+      await loadVideos(true);
+    }
+  }, 60000); // Check every minute if cache needs refresh
 });
 
 /**
