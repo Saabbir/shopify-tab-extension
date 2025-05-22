@@ -14,16 +14,29 @@ const BLOCKED_CHANNELS = [
   // Add more channel handles to block here
 ];
 
-// Popular Shopify YouTube Channels with their channel IDs
+// Popular Shopify YouTube Channels with their channel IDs and handles
 const SHOPIFY_CHANNELS = [
-  { id: 'UC5c9DwxnTqjkKd9mFfY_mYQ', name: 'Shopify' },
-  { id: 'UCP8i8Y0LcLaSueDGkXgCNQQ', name: 'Shopify Developers' },
-  { id: 'UCcws4iale896nBbZ4aNUSGQ', name: 'Shopify Partners' },
-  { id: 'UCu5m5NKfsf_b1MeG25_fxRw', name: 'Elliot Forbes' },
-  { id: 'UCTqf_EcB9k0raKDkk4MUv9w', name: 'WPCrafter' },
-  { id: 'UCYSa_YLoJokZAwHhlwJntIA', name: 'Chase Reiner' },
-  { id: 'UCMACiVI6ImFxA5doYUMCr7w', name: 'Kish Vasnani' },
-  { id: 'UCQ5j-ZTdJ5VRGZPfGDYiHcA', name: 'Code With Dary' }
+  { id: 'UCwqNzzV8FmCyGWLfJW8MMSg', name: 'CodingWithJan', handle: 'CodingWithJan' },
+  { id: 'UCvleAzyRQAD2Lkq-WrepcWA', name: 'stackingcontext', handle: 'stackingcontext' },
+  { id: 'UCtu2rdj3syMnfe3BxIIRMOQ', name: 'bosidev', handle: 'bosidev' },
+  { id: 'UCSG_dVp-hi_hWP-Z7DlpRgQ', name: 'TheShopifyAcademy', handle: 'TheShopifyAcademy' },
+  { id: 'UC7JIu_5sHpbZUBQNPKDb2QA', name: 'shopioso', handle: 'shopioso' },
+  { id: 'UCcYsEEKJtpxoO9T-keJZrEw', name: 'shopifydevs', handle: 'shopifydevs' },
+  { id: 'UCf-fJjjCIpXbaUJRmevVLsg', name: 'LiquidWeekly', handle: 'LiquidWeekly' },
+  { id: 'UCbxtV_oVIXBtLRmyPfcLKVg', name: 'ChristheFreelancer', handle: 'ChristheFreelancer' },
+  { id: 'UCUa4yMJ3mVquTL5TIpxatqQ', name: 'WeeklyHow', handle: 'WeeklyHow' },
+  { id: 'UCN7HxyZq6LuhzfrEUbHAB2A', name: 'codingwithrobby', handle: 'codingwithrobby' },
+  { id: 'UCnj1BK9TU32-bOlZ9415fuw', name: 'CodeInspire', handle: 'CodeInspire' },
+  { id: 'UCP1fEDtYRGzpLEeGQUEnkKQ', name: 'stephanodev', handle: 'stephanodev' },
+  { id: 'UCzazWD0cFUOOQZEqhIoBeqA', name: 'stackwisedev', handle: 'stackwisedev' },
+  { id: 'UCBYGj1RV9U1UE0fWPcP4NYg', name: 'codepirates', handle: 'codepirates' },
+  { id: 'UC3YsIFs1rQ0Um81rM57r_hQ', name: 'devwithalex', handle: 'devwithalex' },
+];
+
+// We'll add some fallback channel IDs that work well (confirmed working)
+const FALLBACK_CHANNELS = [
+  { id: 'UCYSa_YLoJokZAwHhlwJntIA', name: 'Chase Reiner' }, // Known working channel
+  { id: 'UCNSzdxDr0vRXq_5F5LG3FKw', name: 'Shopify Help Center' }
 ];
 
 // Search terms to look for in video titles for relevance
@@ -51,12 +64,11 @@ function isCacheValid() {
   const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
   if (!timestamp) return false;
   
-  const cachedTime = parseInt(timestamp, 10);
-  const now = Date.now();
-  const isValid = now - cachedTime < CACHE_DURATION;
+  const age = Date.now() - parseInt(timestamp);
+  const minutes = Math.floor(age / 60000);
+  console.log(`Cache status: ${age < CACHE_DURATION ? 'Valid' : 'Expired'} (${minutes} minutes old)`);
   
-  console.log(`Cache status: ${isValid ? 'Valid' : 'Expired'} (${Math.round((now - cachedTime) / 60000)} minutes old)`);
-  return isValid;
+  return age < CACHE_DURATION;
 }
 
 /**
@@ -73,6 +85,15 @@ function saveToCache(videos) {
     localStorage.removeItem(CACHE_KEY);
     localStorage.removeItem(CACHE_TIMESTAMP_KEY);
   }
+}
+
+/**
+ * Clear the video cache
+ */
+function clearCache() {
+  console.log('Clearing cache...');
+  localStorage.removeItem(CACHE_KEY);
+  localStorage.removeItem(CACHE_TIMESTAMP_KEY);
 }
 
 /**
@@ -155,7 +176,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // Handle refresh button click - force refresh
-  refreshBtn.addEventListener('click', () => loadVideos(true));
+  refreshBtn.addEventListener('click', () => {
+    // Clear cache first, then force a refresh
+    clearCache();
+    loadVideos(true);
+  });
 
   // Initial load - use cache if available
   await loadVideos(false);
@@ -186,23 +211,55 @@ async function getAllVideos() {
   
   try {
     // Collect videos from all channel RSS feeds
-    let allVideos = [];
     
     // Function to fetch RSS feed from a channel
     async function fetchChannelFeed(channel) {
       try {
-        // YouTube RSS feed URL for channel using channel ID
-        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`;
+        console.log(`Fetching RSS feed for ${channel.name} (${channel.id})...`);
         
-        console.log(`Fetching RSS feed for ${channel.name}...`);
-        const response = await fetch(feedUrl);
+        // Define all possible RSS feed URL formats to try
+        const urlFormats = [
+          // Standard channel_id format
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`,
+          
+          // Handle format if available
+          channel.handle ? `https://www.youtube.com/feeds/videos.xml?user=${channel.handle}` : null,
+          
+          // Channel URL format
+          `https://www.youtube.com/channel/${channel.id}/feed/atom`,
+          
+          // Legacy username format
+          channel.handle ? `https://www.youtube.com/feeds/videos.xml?user=${channel.handle.toLowerCase()}` : null
+        ].filter(Boolean); // Remove null entries
         
-        if (!response.ok) {
-          console.error(`RSS feed request failed for ${channel.name}: ${response.status}`);
+        let response = null;
+        let successUrl = null;
+        
+        // Try each URL format until one works
+        for (const url of urlFormats) {
+          try {
+            console.log(`Trying URL: ${url}`);
+            response = await fetch(url);
+            
+            if (response.ok) {
+              successUrl = url;
+              console.log(`Success with URL: ${url}`);
+              break;
+            }
+          } catch (urlError) {
+            console.warn(`Error with URL ${url}:`, urlError.message);
+            // Continue to next URL format
+          }
+        }
+        
+        // If none worked, throw error
+        if (!response || !response.ok) {
+          console.error(`All RSS feed formats failed for ${channel.name}`);
           throw new Error(`Could not fetch RSS feed for ${channel.name}`);
         }
         
         const text = await response.text();
+        console.log(`Successfully fetched feed for ${channel.name} (${successUrl})`);
         return parseRssFeed(text, channel.name, channel.id);
       } catch (error) {
         console.error(`Error fetching channel ${channel.name}:`, error);
@@ -287,21 +344,48 @@ async function getAllVideos() {
     // Function to check if video is relevant based on title
     function isRelevantVideo(title) {
       title = title.toLowerCase();
-      return RELEVANCE_TERMS.some(term => title.includes(term.toLowerCase()));
+      // For now, disable relevance filtering to see all videos
+      return true;
+      // Uncomment this later once we fix the feed issues
+      // return RELEVANCE_TERMS.some(term => title.includes(term.toLowerCase()));
     }
     
     // Fetch from all channels in parallel
-    const channelPromises = SHOPIFY_CHANNELS.map(channel => fetchChannelFeed(channel));
-    const channelResults = await Promise.all(channelPromises);
+    const allVideosPromises = SHOPIFY_CHANNELS.map(channel => fetchChannelFeed(channel));
+    const allVideosArrays = await Promise.all(allVideosPromises);
     
-    // Combine results
-    channelResults.forEach(videos => {
-      if (videos && videos.length) {
-        allVideos = [...allVideos, ...videos];
-      }
+    // Debug which channels returned videos
+    allVideosArrays.forEach((videos, index) => {
+      console.log(`Channel ${SHOPIFY_CHANNELS[index].name}: ${videos.length} videos`);
     });
     
+    // Combine all videos
+    let allVideos = allVideosArrays.flat();
     console.log(`Total videos from all channels: ${allVideos.length}`);
+    
+    // If too few videos found, try fallback channels
+    if (allVideos.length < 5) {
+      console.log('Not enough videos found from main channels, trying fallback channels...');
+      const fallbackPromises = FALLBACK_CHANNELS.map(channel => fetchChannelFeed(channel));
+      const fallbackArrays = await Promise.all(fallbackPromises);
+      
+      // Log results from fallback channels
+      fallbackArrays.forEach((videos, index) => {
+        console.log(`Fallback Channel ${FALLBACK_CHANNELS[index].name}: ${videos.length} videos`);
+      });
+      
+      const fallbackVideos = fallbackArrays.flat();
+      allVideos = allVideos.concat(fallbackVideos);
+      console.log(`Total videos after fallbacks: ${allVideos.length}`);
+    }
+    
+    // If still not enough videos, try search query
+    if (allVideos.length < 5) {
+      console.log('Still not enough videos, trying search...');
+      const searchVideos = await searchShopifyVideos();
+      console.log(`Search found ${searchVideos.length} videos`);
+      allVideos = allVideos.concat(searchVideos);
+    }
     
     // Filter out blocked channels
     const filteredVideos = allVideos.filter(video => {
