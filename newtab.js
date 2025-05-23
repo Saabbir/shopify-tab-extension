@@ -19,7 +19,7 @@ const SHOPIFY_CHANNELS = [
   { id: 'UCwqNzzV8FmCyGWLfJW8MMSg', name: 'CodingWithJan', handle: 'CodingWithJan' },
   { id: 'UCvleAzyRQAD2Lkq-WrepcWA', name: 'stackingcontext', handle: 'stackingcontext' },
   { id: 'UCtu2rdj3syMnfe3BxIIRMOQ', name: 'bosidev', handle: 'bosidev' },
-  { id: 'UCSG_dVp-hi_hWP-Z7DlpRgQ', name: 'TheShopifyAcademy', handle: 'TheShopifyAcademy' },
+  // { id: 'UCSG_dVp-hi_hWP-Z7DlpRgQ', name: 'TheShopifyAcademy', handle: 'TheShopifyAcademy' },
   { id: 'UC7JIu_5sHpbZUBQNPKDb2QA', name: 'shopioso', handle: 'shopioso' },
   { id: 'UCcYsEEKJtpxoO9T-keJZrEw', name: 'shopifydevs', handle: 'shopifydevs' },
   { id: 'UCf-fJjjCIpXbaUJRmevVLsg', name: 'LiquidWeekly', handle: 'LiquidWeekly' },
@@ -31,6 +31,13 @@ const SHOPIFY_CHANNELS = [
   { id: 'UCzazWD0cFUOOQZEqhIoBeqA', name: 'stackwisedev', handle: 'stackwisedev' },
   { id: 'UCBYGj1RV9U1UE0fWPcP4NYg', name: 'codepirates', handle: 'codepirates' },
   { id: 'UC3YsIFs1rQ0Um81rM57r_hQ', name: 'devwithalex', handle: 'devwithalex' },
+  { id: 'UCNQ6FEtztATuaVhZKCY28Yw', name: 'chaiaurcode', handle: 'chaiaurcode' },
+  { id: 'UCyU5wkjgQYGRB0hIHMwm2Sg', name: 'syntaxfm', handle: 'syntaxfm' },
+  { id: 'UCWv7vMbMWH4-V0ZXdmDpPBA', name: 'programmingwithmosh', handle: 'programmingwithmosh' },
+  { id: 'UCNxUdsuH8-kEGIwSD0r8RhQ', name: 'maximilian-schwarzmueller', handle: 'maximilian-schwarzmueller' },
+  { id: 'UCFM3gG5IHfogarxlKcIHCAg', name: 'LearnwithSumit', handle: 'LearnwithSumit' },
+  { id: 'UCJZv4d5rbIKd4QHMPkcABCw', name: 'KevinPowell', handle: 'KevinPowell' },
+  { id: 'UCCvVhSNCaxWlcQ2hlkLlwbw', name: 'mhcconstructionltd', handle: 'mhcconstructionltd' },
 ];
 
 // We'll add some fallback channel IDs that work well (confirmed working)
