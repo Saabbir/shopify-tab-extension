@@ -28,13 +28,13 @@ const CHANNELS = [
     category: "shopify",
     language: "english",
   },
-  {
-    id: "UCcYsEEKJtpxoO9T-keJZrEw",
-    name: "shopifydevs",
-    handle: "shopifydevs",
-    category: "shopify",
-    language: "english",
-  },
+  // {
+  //   id: "UCcYsEEKJtpxoO9T-keJZrEw",
+  //   name: "shopifydevs",
+  //   handle: "shopifydevs",
+  //   category: "shopify",
+  //   language: "english",
+  // },
   {
     id: "UCf-fJjjCIpXbaUJRmevVLsg",
     name: "LiquidWeekly",
@@ -112,13 +112,13 @@ const CHANNELS = [
     category: "web-dev",
     language: "english",
   },
-  {
-    id: "UCNxUdsuH8-kEGIwSD0r8RhQ",
-    name: "maximilian-schwarzmueller",
-    handle: "maximilian-schwarzmueller",
-    category: "web-dev",
-    language: "english",
-  },
+  // {
+  //   id: "UCNxUdsuH8-kEGIwSD0r8RhQ",
+  //   name: "maximilian-schwarzmueller",
+  //   handle: "maximilian-schwarzmueller",
+  //   category: "web-dev",
+  //   language: "english",
+  // },
   {
     id: "UCFM3gG5IHfogarxlKcIHCAg",
     name: "LearnwithSumit",
