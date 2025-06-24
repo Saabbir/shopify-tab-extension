@@ -47,8 +47,13 @@ function isCacheValid() {
  */
 function saveToCache(videos) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(videos));
-    localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+    const cacheData = {
+      videos,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+    localStorage.setItem(CACHE_TIMESTAMP_KEY, cacheData.timestamp.toString());
     console.log(`Saved ${videos.length} videos to cache at ${new Date().toLocaleTimeString()}`);
   } catch (error) {
     console.error('Error saving to cache:', error);
@@ -75,7 +80,14 @@ function getFromCache() {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
     
-    const videos = JSON.parse(cached);
+    const cacheData = JSON.parse(cached);
+    const videos = Array.isArray(cacheData) ? cacheData : cacheData.videos;
+    
+    if (!videos || !Array.isArray(videos)) {
+      console.log('Invalid cache format, ignoring');
+      return null;
+    }
+    
     console.log(`Retrieved ${videos.length} videos from cache`);
     return videos;
   } catch (error) {
@@ -89,6 +101,54 @@ document.addEventListener('DOMContentLoaded', async () => {
   const refreshBtn = document.getElementById('refresh-btn');
   const videoContainer = document.getElementById('videos-container');
   const loading = document.getElementById('loading');
+  const categoryFilter = document.getElementById('category-filter');
+  
+  // Get all unique categories from channels
+  const allCategories = [...new Set([...CHANNELS, ...FALLBACK_CHANNELS]
+    .map(c => c.category)
+    .filter(Boolean))]; // Remove any undefined categories
+  
+  // Update category filter options
+  const categorySelect = document.getElementById('category-filter');
+  categorySelect.innerHTML = ''; // Clear existing options
+  
+  // Add 'All Categories' option
+  const allOption = document.createElement('option');
+  allOption.value = 'all';
+  allOption.textContent = 'All Categories';
+  categorySelect.appendChild(allOption);
+  
+  // Add category options
+  allCategories.forEach(category => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+    categorySelect.appendChild(option);
+  });
+  
+  // Set default selected category to 'shopify' if available, otherwise use saved or first category
+  const defaultCategory = allCategories.includes('shopify') ? 'shopify' : (allCategories[0] || 'all');
+  const savedCategory = localStorage.getItem('selectedCategory');
+  categorySelect.value = savedCategory || defaultCategory;
+  
+  // Add event listener for category filter changes
+  categoryFilter.addEventListener('change', async () => {
+    const selectedCategory = categoryFilter.value;
+    localStorage.setItem('selectedCategory', selectedCategory);
+    
+    // Clear the current videos and show loading
+    currentVideos = [];
+    if (videoContainer) videoContainer.innerHTML = '';
+    if (loading) loading.style.display = 'block';
+    
+    try {
+      // Fetch fresh videos for the selected category
+      await fetchFreshVideos();
+    } catch (error) {
+      console.error('Error changing category:', error);
+      displayError('Failed to load videos for the selected category');
+    }
+  });
 
   /**
    * Fetch fresh videos and update cache
@@ -99,17 +159,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (loading) loading.style.display = 'block';
       if (videoContainer) videoContainer.innerHTML = '';
       
-      // Fetch fresh data
-      const videos = await getAllVideos();
+      // Get the selected category
+      const selectedCategory = categorySelect.value;
+      console.log(`Fetching videos for category: ${selectedCategory}`);
+      
+      // Fetch fresh data with the selected category
+      const videos = await getAllVideos(selectedCategory === 'all' ? null : selectedCategory);
       currentVideos = videos;
       
-      // Save to cache
-      saveToCache(videos);
+      // Save to cache with category info
+      saveToCache({
+        videos,
+        category: selectedCategory,
+        timestamp: Date.now()
+      });
       
       // Display the videos
       displayVideos(currentVideos);
       
-      console.log(`Successfully loaded ${currentVideos.length} fresh videos`);
+      console.log(`Successfully loaded ${currentVideos.length} fresh videos for category: ${selectedCategory}`);
       return true;
     } catch (error) {
       console.error('Error fetching videos:', error);
@@ -167,8 +235,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 /**
  * Get videos from YouTube using RSS feeds (no API key required)
+ * @param {string} [category] - Optional category to filter channels by
  */
-async function getAllVideos() {
+async function getAllVideos(category) {
+  // Filter channels by category if specified
+  const channelsToFetch = category 
+    ? CHANNELS.filter(channel => channel.category === category)
+    : CHANNELS;
+    
+  console.log(`Fetching videos for ${category || 'all'} categories (${channelsToFetch.length} channels)`);
   console.log('Fetching videos:', new Date());
   
   // First check if we can use cache
@@ -321,21 +396,21 @@ async function getAllVideos() {
       // return RELEVANCE_TERMS.some(term => title.includes(term.toLowerCase()));
     }
     
-    // Fetch from all channels in parallel
-    const allVideosPromises = CHANNELS.map(channel => fetchChannelFeed(channel));
+    // Fetch from filtered channels in parallel
+    const allVideosPromises = channelsToFetch.map(channel => fetchChannelFeed(channel));
     const allVideosArrays = await Promise.all(allVideosPromises);
     
     // Debug which channels returned videos
     allVideosArrays.forEach((videos, index) => {
-      console.log(`Channel ${CHANNELS[index].name}: ${videos.length} videos`);
+      console.log(`Channel ${channelsToFetch[index].name}: ${videos.length} videos`);
     });
     
     // Combine all videos
     let allVideos = allVideosArrays.flat();
-    console.log(`Total videos from all channels: ${allVideos.length}`);
+    console.log(`Total videos from filtered channels: ${allVideos.length}`);
     
-    // If too few videos found, try fallback channels
-    if (allVideos.length < 5) {
+    // If no category filter or too few videos found, try fallback channels
+    if (!category || (allVideos.length < 5 && category !== 'all')) {
       console.log('Not enough videos found from main channels, trying fallback channels...');
       const fallbackPromises = FALLBACK_CHANNELS.map(channel => fetchChannelFeed(channel));
       const fallbackArrays = await Promise.all(fallbackPromises);

@@ -127,6 +127,13 @@ const CHANNELS = [
     language: "bengali",
   },
   {
+    id: "UCs2cWnd7Sb1eXT-50oMOxlw",
+    name: "Jhankar Mahbub",
+    handle: "JhankarMahbub",
+    category: "web-dev",
+    language: "bengali",
+  },
+  {
     id: "UCJZv4d5rbIKd4QHMPkcABCw",
     name: "KevinPowell",
     handle: "KevinPowell",
