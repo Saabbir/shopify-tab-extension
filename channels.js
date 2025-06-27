@@ -50,6 +50,13 @@ const CHANNELS = [
     language: "english",
   },
   {
+    id: "UCBukJ6yWzTdlLKY9QKhv-Mg",
+    name: "Code with Chris the Freelancer",
+    handle: "CodewithChristheFreelancer",
+    category: "shopify",
+    language: "english",
+  },
+  {
     id: "UCUa4yMJ3mVquTL5TIpxatqQ",
     name: "WeeklyHow",
     handle: "WeeklyHow",
