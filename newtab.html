@@ -17,6 +17,7 @@
         <option value="ecommerce">E-commerce</option>
         <option value="development">Development</option>
       </select>
+      <button id="manage-channels-btn" class="manage-channels-btn">Manage Channels</button>
       <button id="refresh-btn" class="refresh-btn">
         <span class="refresh-icon">🔄</span>
         <span class="refresh-text">Refresh</span>
@@ -25,6 +26,31 @@
   </header>
   <main>
     <div class="container">
+      <section id="channel-manager" class="channel-manager" style="display: none;">
+        <div class="channel-manager-header">
+          <h2>Manage Channels</h2>
+          <div class="channel-manager-actions">
+            <button id="reset-channels-btn" class="channel-manager-secondary">Reset to Defaults</button>
+            <button id="close-channel-manager-btn" class="channel-manager-secondary">Close</button>
+          </div>
+        </div>
+
+        <form id="channel-form" class="channel-form">
+          <input type="hidden" id="channel-edit-index" value="">
+          <input id="channel-id" type="text" placeholder="Channel ID (required)" required>
+          <input id="channel-name" type="text" placeholder="Channel Name (required)" required>
+          <input id="channel-handle" type="text" placeholder="Handle (optional)">
+          <input id="channel-category" type="text" list="channel-categories" placeholder="Category (required, select or type new)" required>
+          <datalist id="channel-categories"></datalist>
+          <input id="channel-language" type="text" list="channel-languages" placeholder="Language (optional, select or type new)">
+          <datalist id="channel-languages"></datalist>
+          <button id="save-channel-btn" type="submit">Save Channel</button>
+        </form>
+
+        <div id="channel-form-error" class="channel-form-error" style="display: none;"></div>
+        <div id="channels-list" class="channels-list"></div>
+      </section>
+
       <div id="loading">Loading...</div>
       <div id="error-message" style="display: none; color: #f44336; padding: 8px; border-radius: 4px;"></div>
       <div id="videos-container" class="videos-grid"></div>

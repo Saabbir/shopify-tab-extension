@@ -32,6 +32,21 @@ header {
   gap: 16px;
 }
 
+.manage-channels-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 16px;
+  padding: 8px 16px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.manage-channels-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 .category-filter {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -258,4 +273,101 @@ main {
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-weight: 400;
+}
+
+.channel-manager {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.channel-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.channel-manager-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.channel-manager-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.channel-manager-secondary {
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #333;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.channel-form {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.channel-form input,
+.channel-form button {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 13px;
+}
+
+.channel-form button {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.channel-form-error {
+  color: #d32f2f;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.channels-list {
+  max-height: 360px;
+  overflow: auto;
+  border-top: 1px solid #eee;
+}
+
+.channel-row {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1.2fr 1fr 1fr 1.2fr;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f2f2f2;
+  font-size: 13px;
+}
+
+.channel-row-header {
+  font-weight: 600;
+  color: #333;
+}
+
+.channel-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.channel-actions button {
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
 }

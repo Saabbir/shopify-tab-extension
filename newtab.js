@@ -3,12 +3,14 @@ const CACHE_KEY = 'shopify_videos_cache';
 const CACHE_TIMESTAMP_KEY = 'shopify_videos_timestamp';
 const CACHE_DURATION = 3600 * 1000; // 1 hour in milliseconds
 const AUTO_REFRESH_INTERVAL = 3600 * 1000; // 1 hour
+const CHANNELS_STORAGE_KEY = 'shopify_custom_channels';
 let refreshInterval = null;
 let isRefreshing = false;
 let currentVideos = [];
 const MAX_VIDEOS = 100;
 import channelsData from './channels.js';
 const { CHANNELS, BLOCKED_CHANNELS, FALLBACK_CHANNELS } = channelsData;
+let editableChannels = [];
 
 // Search terms to look for in video titles for relevance
 const RELEVANCE_TERMS = [
@@ -27,6 +29,80 @@ const RELEVANCE_TERMS = [
   'headless',
   'commerce'
 ];
+
+function cloneDefaultChannels() {
+  return JSON.parse(JSON.stringify(CHANNELS));
+}
+
+function loadEditableChannels() {
+  try {
+    const stored = localStorage.getItem(CHANNELS_STORAGE_KEY);
+    if (!stored) return cloneDefaultChannels();
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed) || parsed.length === 0) return cloneDefaultChannels();
+    return parsed;
+  } catch (error) {
+    console.error('Failed to load custom channels:', error);
+    return cloneDefaultChannels();
+  }
+}
+
+function saveEditableChannels(channels) {
+  editableChannels = channels;
+  localStorage.setItem(CHANNELS_STORAGE_KEY, JSON.stringify(channels));
+}
+
+function getAllCategories() {
+  const categories = [...editableChannels, ...FALLBACK_CHANNELS]
+    .map(c => normalizeCategory(c.category))
+    .filter(Boolean);
+  return [...new Set(categories)];
+}
+
+function getAllLanguages() {
+  const languages = [...editableChannels, ...FALLBACK_CHANNELS]
+    .map(c => normalizeLanguage(c.language))
+    .filter(Boolean);
+  return [...new Set(languages)];
+}
+
+function normalizeCategory(value) {
+  if (!value) return '';
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function normalizeLanguage(value) {
+  if (!value) return '';
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function upsertCategoryOptions(selectEl, categories) {
+  selectEl.innerHTML = '';
+
+  const allOption = document.createElement('option');
+  allOption.value = 'all';
+  allOption.textContent = 'All Categories';
+  selectEl.appendChild(allOption);
+
+  categories.forEach(category => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+    selectEl.appendChild(option);
+  });
+
+  const defaultCategory = categories.includes('shopify') ? 'shopify' : (categories[0] || 'all');
+  selectEl.value = defaultCategory;
+  localStorage.setItem('selectedCategory', defaultCategory);
+}
 
 /**
  * Check if cache is valid (exists and not expired)
@@ -97,39 +173,105 @@ function getFromCache() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  editableChannels = loadEditableChannels();
+
   // Initialize UI elements
   const refreshBtn = document.getElementById('refresh-btn');
+  const manageChannelsBtn = document.getElementById('manage-channels-btn');
+  const channelManager = document.getElementById('channel-manager');
+  const closeChannelManagerBtn = document.getElementById('close-channel-manager-btn');
+  const resetChannelsBtn = document.getElementById('reset-channels-btn');
+  const channelsList = document.getElementById('channels-list');
+  const channelForm = document.getElementById('channel-form');
+  const channelFormError = document.getElementById('channel-form-error');
+  const channelCategoriesDatalist = document.getElementById('channel-categories');
+  const channelLanguagesDatalist = document.getElementById('channel-languages');
   const videoContainer = document.getElementById('videos-container');
   const loading = document.getElementById('loading');
   const categoryFilter = document.getElementById('category-filter');
-  
-  // Get all unique categories from channels
-  const allCategories = [...new Set([...CHANNELS, ...FALLBACK_CHANNELS]
-    .map(c => c.category)
-    .filter(Boolean))]; // Remove any undefined categories
-  
-  // Update category filter options
   const categorySelect = document.getElementById('category-filter');
-  categorySelect.innerHTML = ''; // Clear existing options
-  
-  // Add 'All Categories' option
-  const allOption = document.createElement('option');
-  allOption.value = 'all';
-  allOption.textContent = 'All Categories';
-  categorySelect.appendChild(allOption);
-  
-  // Add category options
-  allCategories.forEach(category => {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
-    categorySelect.appendChild(option);
-  });
-  
-  // Set default selected category to 'shopify' if available, otherwise use saved or first category
-  const defaultCategory = allCategories.includes('shopify') ? 'shopify' : (allCategories[0] || 'all');
-  const savedCategory = localStorage.getItem('selectedCategory');
-  categorySelect.value = savedCategory || defaultCategory;
+  upsertCategoryOptions(categorySelect, getAllCategories());
+
+  function setChannelFormError(message) {
+    if (!message) {
+      channelFormError.style.display = 'none';
+      channelFormError.textContent = '';
+      return;
+    }
+    channelFormError.style.display = 'block';
+    channelFormError.textContent = message;
+  }
+
+  function resetChannelForm() {
+    document.getElementById('channel-edit-index').value = '';
+    document.getElementById('channel-id').value = '';
+    document.getElementById('channel-name').value = '';
+    document.getElementById('channel-handle').value = '';
+    document.getElementById('channel-category').value = '';
+    document.getElementById('channel-language').value = '';
+    setChannelFormError('');
+  }
+
+  function upsertChannelCategorySuggestions() {
+    const categories = getAllCategories();
+    channelCategoriesDatalist.innerHTML = '';
+    categories.forEach(category => {
+      const option = document.createElement('option');
+      option.value = category;
+      channelCategoriesDatalist.appendChild(option);
+    });
+  }
+
+  function upsertChannelLanguageSuggestions() {
+    const languages = getAllLanguages();
+    channelLanguagesDatalist.innerHTML = '';
+    languages.forEach(language => {
+      const option = document.createElement('option');
+      option.value = language;
+      channelLanguagesDatalist.appendChild(option);
+    });
+  }
+
+  function renderChannelsList() {
+    channelsList.innerHTML = '';
+    const header = document.createElement('div');
+    header.className = 'channel-row channel-row-header';
+    header.innerHTML = `
+      <div>Name</div>
+      <div>Channel ID</div>
+      <div>Handle</div>
+      <div>Category</div>
+      <div>Language</div>
+      <div>Actions</div>
+    `;
+    channelsList.appendChild(header);
+
+    editableChannels.forEach((channel, index) => {
+      const row = document.createElement('div');
+      row.className = 'channel-row';
+      row.innerHTML = `
+        <div>${channel.name || ''}</div>
+        <div>${channel.id || ''}</div>
+        <div>${channel.handle || ''}</div>
+        <div>${channel.category || ''}</div>
+        <div>${channel.language || ''}</div>
+        <div class="channel-actions">
+          <button data-action="edit" data-index="${index}">Edit</button>
+          <button data-action="delete" data-index="${index}">Delete</button>
+        </div>
+      `;
+      channelsList.appendChild(row);
+    });
+  }
+
+  async function refreshAfterChannelChanges(forceRefresh = true) {
+    upsertCategoryOptions(categorySelect, getAllCategories());
+    upsertChannelCategorySuggestions();
+    upsertChannelLanguageSuggestions();
+    renderChannelsList();
+    clearCache();
+    await loadVideos(forceRefresh);
+  }
   
   // Add event listener for category filter changes
   categoryFilter.addEventListener('change', async () => {
@@ -148,6 +290,93 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error changing category:', error);
       displayError('Failed to load videos for the selected category');
     }
+  });
+
+  manageChannelsBtn.addEventListener('click', () => {
+    channelManager.style.display = channelManager.style.display === 'none' ? 'block' : 'none';
+    if (channelManager.style.display === 'block') {
+      upsertChannelCategorySuggestions();
+      upsertChannelLanguageSuggestions();
+      renderChannelsList();
+      resetChannelForm();
+    }
+  });
+
+  closeChannelManagerBtn.addEventListener('click', () => {
+    channelManager.style.display = 'none';
+    resetChannelForm();
+  });
+
+  resetChannelsBtn.addEventListener('click', async () => {
+    const shouldReset = window.confirm('Reset channel list to defaults?');
+    if (!shouldReset) return;
+    saveEditableChannels(cloneDefaultChannels());
+    await refreshAfterChannelChanges(true);
+    resetChannelForm();
+  });
+
+  channelsList.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const action = target.dataset.action;
+    const index = parseInt(target.dataset.index || '-1', 10);
+    if (index < 0 || index >= editableChannels.length) return;
+
+    if (action === 'edit') {
+      const channel = editableChannels[index];
+      document.getElementById('channel-edit-index').value = String(index);
+      document.getElementById('channel-id').value = channel.id || '';
+      document.getElementById('channel-name').value = channel.name || '';
+      document.getElementById('channel-handle').value = channel.handle || '';
+      document.getElementById('channel-category').value = channel.category || '';
+      document.getElementById('channel-language').value = channel.language || '';
+      setChannelFormError('');
+      return;
+    }
+
+    if (action === 'delete') {
+      const channel = editableChannels[index];
+      const shouldDelete = window.confirm(`Delete channel "${channel.name}"?`);
+      if (!shouldDelete) return;
+      const updated = editableChannels.filter((_, i) => i !== index);
+      saveEditableChannels(updated.length > 0 ? updated : cloneDefaultChannels());
+      await refreshAfterChannelChanges(true);
+      resetChannelForm();
+    }
+  });
+
+  channelForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const editIndex = document.getElementById('channel-edit-index').value;
+    const id = document.getElementById('channel-id').value.trim();
+    const name = document.getElementById('channel-name').value.trim();
+    const handle = document.getElementById('channel-handle').value.trim();
+    const category = normalizeCategory(document.getElementById('channel-category').value);
+    const language = normalizeLanguage(document.getElementById('channel-language').value);
+
+    if (!id || !name || !category) {
+      setChannelFormError('Channel ID, Name, and Category are required.');
+      return;
+    }
+
+    const duplicate = editableChannels.find((c, idx) => c.id === id && String(idx) !== editIndex);
+    if (duplicate) {
+      setChannelFormError('A channel with this ID already exists.');
+      return;
+    }
+
+    const payload = { id, name, handle, category, language };
+    const next = [...editableChannels];
+
+    if (editIndex !== '') {
+      next[Number(editIndex)] = payload;
+    } else {
+      next.push(payload);
+    }
+
+    saveEditableChannels(next);
+    await refreshAfterChannelChanges(true);
+    resetChannelForm();
   });
 
   /**
@@ -238,10 +467,11 @@ document.addEventListener('DOMContentLoaded', async () => {
  * @param {string} [category] - Optional category to filter channels by
  */
 async function getAllVideos(category) {
+  const normalizedCategory = normalizeCategory(category);
   // Filter channels by category if specified
   const channelsToFetch = category 
-    ? CHANNELS.filter(channel => channel.category === category)
-    : CHANNELS;
+    ? editableChannels.filter(channel => normalizeCategory(channel.category) === normalizedCategory)
+    : editableChannels;
     
   console.log(`Fetching videos for ${category || 'all'} categories (${channelsToFetch.length} channels)`);
   console.log('Fetching videos:', new Date());
