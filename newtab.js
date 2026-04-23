@@ -40,7 +40,10 @@ function loadEditableChannels() {
     if (!stored) return cloneDefaultChannels();
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed) || parsed.length === 0) return cloneDefaultChannels();
-    return parsed;
+    return parsed.map(channel => ({
+      ...channel,
+      enabled: channel.enabled !== false
+    }));
   } catch (error) {
     console.error('Failed to load custom channels:', error);
     return cloneDefaultChannels();
@@ -48,8 +51,12 @@ function loadEditableChannels() {
 }
 
 function saveEditableChannels(channels) {
-  editableChannels = channels;
-  localStorage.setItem(CHANNELS_STORAGE_KEY, JSON.stringify(channels));
+  const normalizedChannels = channels.map(channel => ({
+    ...channel,
+    enabled: channel.enabled !== false
+  }));
+  editableChannels = normalizedChannels;
+  localStorage.setItem(CHANNELS_STORAGE_KEY, JSON.stringify(normalizedChannels));
 }
 
 function getAllCategories() {
@@ -242,6 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div>Handle</div>
       <div>Category</div>
       <div>Language</div>
+      <div>Status</div>
       <div>Actions</div>
     `;
     channelsList.appendChild(header);
@@ -255,7 +263,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div>${channel.handle || ''}</div>
         <div>${channel.category || ''}</div>
         <div>${channel.language || ''}</div>
+        <div>${channel.enabled !== false ? 'Enabled' : 'Disabled'}</div>
         <div class="channel-actions">
+          <button data-action="toggle" data-index="${index}">${channel.enabled !== false ? 'Disable' : 'Enable'}</button>
           <button data-action="edit" data-index="${index}">Edit</button>
           <button data-action="delete" data-index="${index}">Delete</button>
         </div>
@@ -334,6 +344,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    if (action === 'toggle') {
+      const next = [...editableChannels];
+      const current = next[index];
+      next[index] = {
+        ...current,
+        enabled: current.enabled === false
+      };
+      saveEditableChannels(next);
+      await refreshAfterChannelChanges(true);
+      resetChannelForm();
+      return;
+    }
+
     if (action === 'delete') {
       const channel = editableChannels[index];
       const shouldDelete = window.confirm(`Delete channel "${channel.name}"?`);
@@ -365,7 +388,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const payload = { id, name, handle, category, language };
+    const existingEnabled = editIndex !== '' ? editableChannels[Number(editIndex)]?.enabled !== false : true;
+    const payload = { id, name, handle, category, language, enabled: existingEnabled };
     const next = [...editableChannels];
 
     if (editIndex !== '') {
@@ -468,10 +492,11 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 async function getAllVideos(category) {
   const normalizedCategory = normalizeCategory(category);
+  const enabledChannels = editableChannels.filter(channel => channel.enabled !== false);
   // Filter channels by category if specified
   const channelsToFetch = category 
-    ? editableChannels.filter(channel => normalizeCategory(channel.category) === normalizedCategory)
-    : editableChannels;
+    ? enabledChannels.filter(channel => normalizeCategory(channel.category) === normalizedCategory)
+    : enabledChannels;
     
   console.log(`Fetching videos for ${category || 'all'} categories (${channelsToFetch.length} channels)`);
   console.log('Fetching videos:', new Date());
