@@ -91,7 +91,17 @@ function normalizeLanguage(value) {
     .replace(/-+/g, '-');
 }
 
-function upsertCategoryOptions(selectEl, categories) {
+const DEFAULT_CATEGORY_KEY = 'defaultCategory';
+
+function getDefaultCategory() {
+  return localStorage.getItem(DEFAULT_CATEGORY_KEY) || 'all';
+}
+
+function setDefaultCategory(category) {
+  localStorage.setItem(DEFAULT_CATEGORY_KEY, category);
+}
+
+function populateCategorySelectOptions(selectEl, categories) {
   selectEl.innerHTML = '';
 
   const allOption = document.createElement('option');
@@ -105,10 +115,31 @@ function upsertCategoryOptions(selectEl, categories) {
     option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
     selectEl.appendChild(option);
   });
+}
 
-  const defaultCategory = categories.includes('shopify') ? 'shopify' : (categories[0] || 'all');
-  selectEl.value = defaultCategory;
-  localStorage.setItem('selectedCategory', defaultCategory);
+// Populates the main category filter, preferring the user's last selection and
+// falling back to the default category preference only when there's no valid selection yet
+function upsertCategoryOptions(selectEl, categories) {
+  populateCategorySelectOptions(selectEl, categories);
+
+  const isValid = category => category === 'all' || categories.includes(category);
+
+  const storedSelection = localStorage.getItem('selectedCategory');
+  const defaultCategory = getDefaultCategory();
+  const value = isValid(storedSelection)
+    ? storedSelection
+    : (isValid(defaultCategory) ? defaultCategory : 'all');
+
+  selectEl.value = value;
+  localStorage.setItem('selectedCategory', value);
+}
+
+// Populates the "default category" preference select in Manage Channels, without touching the active filter
+function upsertDefaultCategoryOptions(selectEl, categories) {
+  populateCategorySelectOptions(selectEl, categories);
+
+  const defaultCategory = getDefaultCategory();
+  selectEl.value = defaultCategory === 'all' || categories.includes(defaultCategory) ? defaultCategory : 'all';
 }
 
 /**
@@ -197,7 +228,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const loading = document.getElementById('loading');
   const categoryFilter = document.getElementById('category-filter');
   const categorySelect = document.getElementById('category-filter');
+  const defaultCategorySelect = document.getElementById('default-category-select');
   upsertCategoryOptions(categorySelect, getAllCategories());
+  upsertDefaultCategoryOptions(defaultCategorySelect, getAllCategories());
 
   function setChannelFormError(message) {
     if (!message) {
@@ -276,23 +309,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function refreshAfterChannelChanges(forceRefresh = true) {
     upsertCategoryOptions(categorySelect, getAllCategories());
+    upsertDefaultCategoryOptions(defaultCategorySelect, getAllCategories());
     upsertChannelCategorySuggestions();
     upsertChannelLanguageSuggestions();
     renderChannelsList();
     clearCache();
     await loadVideos(forceRefresh);
   }
-  
+
   // Add event listener for category filter changes
   categoryFilter.addEventListener('change', async () => {
     const selectedCategory = categoryFilter.value;
     localStorage.setItem('selectedCategory', selectedCategory);
-    
+
     // Clear the current videos and show loading
     currentVideos = [];
     if (videoContainer) videoContainer.innerHTML = '';
     if (loading) loading.style.display = 'block';
-    
+
     try {
       // Fetch fresh videos for the selected category
       await fetchFreshVideos();
@@ -300,6 +334,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error changing category:', error);
       displayError('Failed to load videos for the selected category');
     }
+  });
+
+  // Persist the user's preferred default category for future page loads
+  defaultCategorySelect.addEventListener('change', () => {
+    setDefaultCategory(defaultCategorySelect.value);
   });
 
   manageChannelsBtn.addEventListener('click', () => {
