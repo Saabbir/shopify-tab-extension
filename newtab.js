@@ -287,7 +287,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
     channelsList.appendChild(header);
 
-    editableChannels.forEach((channel, index) => {
+    // Show enabled channels first, disabled ones grouped at the bottom;
+    // data-index still refers to the position in editableChannels so actions target the right channel
+    const sortedWithIndex = editableChannels
+      .map((channel, index) => ({ channel, index }))
+      .sort((a, b) => (a.channel.enabled !== false ? 0 : 1) - (b.channel.enabled !== false ? 0 : 1));
+
+    sortedWithIndex.forEach(({ channel, index }) => {
       const row = document.createElement('div');
       row.className = 'channel-row';
       row.innerHTML = `

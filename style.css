@@ -387,3 +387,7 @@ main {
   cursor: pointer;
   font-size: 12px;
 }
+
+.channel-actions button[data-action="toggle"] {
+  width: 56px;
+}
