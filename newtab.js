@@ -4,6 +4,7 @@ const CACHE_TIMESTAMP_KEY = 'shopify_videos_timestamp';
 const CACHE_DURATION = 3600 * 1000; // 1 hour in milliseconds
 const AUTO_REFRESH_INTERVAL = 3600 * 1000; // 1 hour
 const CHANNELS_STORAGE_KEY = 'shopify_custom_channels';
+const YOUTUBE_API_KEY_STORAGE_KEY = 'youtubeApiKey';
 let refreshInterval = null;
 let isRefreshing = false;
 let currentVideos = [];
@@ -89,6 +90,14 @@ function normalizeLanguage(value) {
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
+}
+
+function getYoutubeApiKey() {
+  return (localStorage.getItem(YOUTUBE_API_KEY_STORAGE_KEY) || '').trim();
+}
+
+function setYoutubeApiKey(apiKey) {
+  localStorage.setItem(YOUTUBE_API_KEY_STORAGE_KEY, apiKey.trim());
 }
 
 const DEFAULT_CATEGORY_KEY = 'defaultCategory';
@@ -229,8 +238,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const categoryFilter = document.getElementById('category-filter');
   const categorySelect = document.getElementById('category-filter');
   const defaultCategorySelect = document.getElementById('default-category-select');
+  const youtubeApiKeyInput = document.getElementById('youtube-api-key-input');
   upsertCategoryOptions(categorySelect, getAllCategories());
   upsertDefaultCategoryOptions(defaultCategorySelect, getAllCategories());
+  youtubeApiKeyInput.value = getYoutubeApiKey();
+
+  // Saving an API key re-fetches so duration badges appear immediately instead of waiting for the next cache expiry
+  youtubeApiKeyInput.addEventListener('change', async () => {
+    setYoutubeApiKey(youtubeApiKeyInput.value);
+    clearCache();
+    await loadVideos(true);
+  });
 
   function setChannelFormError(message) {
     if (!message) {
@@ -532,6 +550,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
+ * Attach contentDetails.duration to videos via the YouTube Data API (batches of 50 ids per request).
+ * RSS/Atom feeds don't carry duration, so this is the only source for it; failures here
+ * (bad key, quota, network) are swallowed so videos still render without duration badges.
+ */
+async function attachVideoDurations(videos, apiKey) {
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < videos.length; i += BATCH_SIZE) {
+    const batch = videos.slice(i, i + BATCH_SIZE);
+    const ids = batch.map(video => video.id.videoId).join(',');
+
+    try {
+      const params = new URLSearchParams({ part: 'contentDetails', id: ids, key: apiKey });
+      const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
+      if (!response.ok) {
+        console.warn(`Video duration fetch failed with status ${response.status}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const durationById = new Map((data.items || []).map(item => [item.id, item.contentDetails?.duration]));
+      batch.forEach(video => {
+        const duration = durationById.get(video.id.videoId);
+        if (duration) {
+          video.contentDetails = { duration };
+        }
+      });
+    } catch (error) {
+      console.warn('Error fetching video durations:', error);
+    }
+  }
+}
+
+/**
  * Get videos from YouTube using RSS feeds (no API key required)
  * @param {string} [category] - Optional category to filter channels by
  */
@@ -749,7 +800,13 @@ async function getAllVideos(category) {
     
     // Limit to MAX_VIDEOS
     const finalVideos = sortedVideos.slice(0, MAX_VIDEOS);
-    
+
+    // RSS feeds don't include video length, so fetch it separately if the user configured an API key
+    const apiKey = getYoutubeApiKey();
+    if (apiKey) {
+      await attachVideoDurations(finalVideos, apiKey);
+    }
+
     // Save to cache for future use
     saveToCache(finalVideos);
     

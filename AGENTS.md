@@ -78,8 +78,17 @@ Channel objects (`channels.js` seed data and `editableChannels` at runtime):
 - `shopify_custom_channels` (`CHANNELS_STORAGE_KEY`) — the user's live, editable channel list (overrides `CHANNELS` from `channels.js` once it exists). "Reset to Defaults" clears this back to `channels.js`'s `CHANNELS`.
 - `selectedCategory` — the currently active category filter; persists across new tabs (this is the user's last manual choice, not necessarily the default preference)
 - `defaultCategory` — the fallback/"land here" category set via the `#default-category-select` preference in Manage Channels; only used when there's no valid `selectedCategory` yet (first run, or the previously selected category was deleted)
+- `youtubeApiKey` — optional YouTube Data API v3 key set via `#youtube-api-key-input` in Manage Channels; enables video-duration badges (see §7b). Empty/absent means no key configured, not an error state.
 
 Manual refresh: clears cache then force-fetches. Auto-refresh: periodic check every minute; refreshes when stale.
+
+## 7b) Video duration badges (why they need an API key)
+
+YouTube's RSS/Atom feeds (the feed the live flow parses) do not include video length — there's no way to get it from `parseRssFeed()` alone. `attachVideoDurations(videos, apiKey)` in `newtab.js` fetches `contentDetails.duration` from the YouTube Data API (`videos.list`, batched 50 ids/request) and is called from `getAllVideos()` right after `finalVideos` is assembled, only when `getYoutubeApiKey()` returns a non-empty key. `manifest.json` already grants `host_permissions` for `googleapis.com`, so no manifest change is needed to use this.
+
+- No key configured: `attachVideoDurations` is skipped entirely; `video.contentDetails` stays undefined and `displayVideos()` already omits the badge in that case (`video.contentDetails?.duration` check) — this is normal, not a bug.
+- Bad key / quota exceeded / network failure: caught and logged per-batch inside `attachVideoDurations`; videos still render without a badge rather than the whole fetch failing.
+- The badge markup/CSS (`.video-duration`) already existed before the key wiring was added — it's absolutely positioned bottom-right over `.thumbnail-container`, styled to look like YouTube's own overlay.
 
 ## 7) Category selection logic (easy to get wrong — read before touching)
 
@@ -104,7 +113,7 @@ Both are called on initial load and after any channel-list change (`refreshAfter
 - Preserve manifest keys and MV3 compatibility.
 - Preserve DOM IDs used by JS:
   - Video area: `loading`, `error-message`, `videos-container`, `refresh-btn`, `category-filter`
-  - Channel manager: `manage-channels-btn`, `channel-manager`, `close-channel-manager-btn`, `reset-channels-btn`, `default-category-select`, `channel-form`, `channel-edit-index`, `channel-id`, `channel-name`, `channel-handle`, `channel-category`, `channel-categories`, `channel-language`, `channel-languages`, `save-channel-btn`, `channel-form-error`, `channels-list`
+  - Channel manager: `manage-channels-btn`, `channel-manager`, `close-channel-manager-btn`, `reset-channels-btn`, `default-category-select`, `youtube-api-key-input`, `channel-form`, `channel-edit-index`, `channel-id`, `channel-name`, `channel-handle`, `channel-category`, `channel-categories`, `channel-language`, `channel-languages`, `save-channel-btn`, `channel-form-error`, `channels-list`
 - Preserve module import in `newtab.js`:
   - `import channelsData from './channels.js';`
 - In `renderChannelsList()`, rows are sorted enabled-first/disabled-last for display, but `data-index` on each action button still refers to the row's real position in `editableChannels` — if you change the sort, keep that index mapping intact or the toggle/edit/delete buttons will act on the wrong channel.

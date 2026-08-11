@@ -318,11 +318,17 @@ main {
   color: #333;
 }
 
-.preferences-row select {
+.preferences-row select,
+.preferences-row input {
   padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #ddd;
   font-size: 13px;
+}
+
+.preferences-row input {
+  flex: 1;
+  max-width: 320px;
 }
 
 .channel-form {
