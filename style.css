@@ -333,7 +333,7 @@ main {
 
 .channel-form {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -344,6 +344,14 @@ main {
   border-radius: 6px;
   border: 1px solid #ddd;
   font-size: 13px;
+}
+
+.channel-form-favorite {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #333;
 }
 
 .channel-form button {
@@ -363,19 +371,25 @@ main {
   max-height: 360px;
   overflow: auto;
   border-top: 1px solid #eee;
-}
-
-.channel-row {
   display: grid;
   grid-template-columns: 2fr 2fr 1.2fr 1fr 1fr 0.9fr 1.6fr;
-  gap: 8px;
+  column-gap: 8px;
   align-items: center;
+}
+
+/* display:contents lets each row's cells join the single grid above, instead of
+   each row being its own independent grid with its own column widths */
+.channel-row {
+  display: contents;
+}
+
+.channel-row > div {
   padding: 10px 0;
   border-bottom: 1px solid #f2f2f2;
   font-size: 13px;
 }
 
-.channel-row-header {
+.channel-row-header > div {
   font-weight: 600;
   color: #333;
 }
@@ -396,4 +410,9 @@ main {
 
 .channel-actions button[data-action="toggle"] {
   width: 56px;
+}
+
+.channel-actions button[data-action="toggle-favorite"] {
+  width: 92px;
+  white-space: nowrap;
 }

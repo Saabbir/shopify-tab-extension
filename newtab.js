@@ -43,7 +43,8 @@ function loadEditableChannels() {
     if (!Array.isArray(parsed) || parsed.length === 0) return cloneDefaultChannels();
     return parsed.map(channel => ({
       ...channel,
-      enabled: channel.enabled !== false
+      enabled: channel.enabled !== false,
+      favorite: channel.favorite === true
     }));
   } catch (error) {
     console.error('Failed to load custom channels:', error);
@@ -54,10 +55,22 @@ function loadEditableChannels() {
 function saveEditableChannels(channels) {
   const normalizedChannels = channels.map(channel => ({
     ...channel,
-    enabled: channel.enabled !== false
+    enabled: channel.enabled !== false,
+    favorite: channel.favorite === true
   }));
   editableChannels = normalizedChannels;
   localStorage.setItem(CHANNELS_STORAGE_KEY, JSON.stringify(normalizedChannels));
+  mirrorChannelsForBackground(normalizedChannels);
+}
+
+// background.js is a service worker with no localStorage/DOM access, so the
+// enabled/favorite channel state it needs is mirrored to chrome.storage.local here.
+function mirrorChannelsForBackground(channels) {
+  chrome.storage.local.set({
+    shopify_channels_mirror: channels.map(({ id, name, category, enabled, favorite }) => ({
+      id, name, category, enabled, favorite
+    }))
+  });
 }
 
 function getAllCategories() {
@@ -97,7 +110,15 @@ function getYoutubeApiKey() {
 }
 
 function setYoutubeApiKey(apiKey) {
-  localStorage.setItem(YOUTUBE_API_KEY_STORAGE_KEY, apiKey.trim());
+  const trimmed = apiKey.trim();
+  localStorage.setItem(YOUTUBE_API_KEY_STORAGE_KEY, trimmed);
+  mirrorYoutubeApiKeyForBackground(trimmed);
+}
+
+// background.js has no localStorage access, so the key is mirrored here (same
+// pattern as mirrorChannelsForBackground) so it can fetch video durations too.
+function mirrorYoutubeApiKeyForBackground(apiKey) {
+  chrome.storage.local.set({ shopify_youtube_api_key_mirror: apiKey });
 }
 
 const DEFAULT_CATEGORY_KEY = 'defaultCategory';
@@ -221,6 +242,7 @@ function getFromCache() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   editableChannels = loadEditableChannels();
+  mirrorChannelsForBackground(editableChannels);
 
   // Initialize UI elements
   const refreshBtn = document.getElementById('refresh-btn');
@@ -242,6 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   upsertCategoryOptions(categorySelect, getAllCategories());
   upsertDefaultCategoryOptions(defaultCategorySelect, getAllCategories());
   youtubeApiKeyInput.value = getYoutubeApiKey();
+  mirrorYoutubeApiKeyForBackground(getYoutubeApiKey());
 
   // Saving an API key re-fetches so duration badges appear immediately instead of waiting for the next cache expiry
   youtubeApiKeyInput.addEventListener('change', async () => {
@@ -267,6 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('channel-handle').value = '';
     document.getElementById('channel-category').value = '';
     document.getElementById('channel-language').value = '';
+    document.getElementById('channel-favorite').checked = false;
     setChannelFormError('');
   }
 
@@ -315,13 +339,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const row = document.createElement('div');
       row.className = 'channel-row';
       row.innerHTML = `
-        <div>${channel.name || ''}</div>
+        <div>${channel.favorite ? '★ ' : ''}${channel.name || ''}</div>
         <div>${channel.id || ''}</div>
         <div>${channel.handle || ''}</div>
         <div>${channel.category || ''}</div>
         <div>${channel.language || ''}</div>
         <div>${channel.enabled !== false ? 'Enabled' : 'Disabled'}</div>
         <div class="channel-actions">
+          <button data-action="toggle-favorite" data-index="${index}">${channel.favorite ? '★ Unfavorite' : '☆ Favorite'}</button>
           <button data-action="toggle" data-index="${index}">${channel.enabled !== false ? 'Disable' : 'Enable'}</button>
           <button data-action="edit" data-index="${index}">Edit</button>
           <button data-action="delete" data-index="${index}">Delete</button>
@@ -403,6 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('channel-handle').value = channel.handle || '';
       document.getElementById('channel-category').value = channel.category || '';
       document.getElementById('channel-language').value = channel.language || '';
+      document.getElementById('channel-favorite').checked = channel.favorite === true;
       setChannelFormError('');
       return;
     }
@@ -417,6 +443,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       saveEditableChannels(next);
       await refreshAfterChannelChanges(true);
       resetChannelForm();
+      return;
+    }
+
+    if (action === 'toggle-favorite') {
+      const next = [...editableChannels];
+      const current = next[index];
+      next[index] = {
+        ...current,
+        favorite: current.favorite !== true
+      };
+      saveEditableChannels(next);
+      renderChannelsList();
       return;
     }
 
@@ -439,6 +477,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const handle = document.getElementById('channel-handle').value.trim();
     const category = normalizeCategory(document.getElementById('channel-category').value);
     const language = normalizeLanguage(document.getElementById('channel-language').value);
+    const favorite = document.getElementById('channel-favorite').checked;
 
     if (!id || !name || !category) {
       setChannelFormError('Channel ID, Name, and Category are required.');
@@ -452,7 +491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const existingEnabled = editIndex !== '' ? editableChannels[Number(editIndex)]?.enabled !== false : true;
-    const payload = { id, name, handle, category, language, enabled: existingEnabled };
+    const payload = { id, name, handle, category, language, enabled: existingEnabled, favorite };
     const next = [...editableChannels];
 
     if (editIndex !== '') {
